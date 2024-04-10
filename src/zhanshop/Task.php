@@ -21,7 +21,7 @@ abstract class Task
      * 任务启动
      * @return mixed
      */
-    abstract public function onStart();
+    public function onStart(){}
 
     /**
      * 任务运行
@@ -33,5 +33,5 @@ abstract class Task
      * 任务结束
      * @return mixed
      */
-    abstract public function onEnd();
+    public function onEnd(){}
 }

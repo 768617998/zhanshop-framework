@@ -149,6 +149,9 @@ class ServEvent
         // 将以上信息都贴在 issue 中
         $msg = '工作进程'.$worker_id.',所属进程'.$worker_pid.'退出码'.$exit_code.'退出信号'.$signal;
         Log::errorLog(SWOOLE_LOG_ERROR, $msg);
+        foreach ($server->connections as $fd) {
+            $server->close($fd, true);
+        }
         App::make(Robot::class)->send($msg);
     }
 

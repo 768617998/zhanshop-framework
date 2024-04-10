@@ -88,6 +88,7 @@ class ServerStatus
     public static function http($url){
         $curl = new Curl();
         $curl->setHeader("Content-Type", "application/json; charset=utf-8");
+        $curl->seEncodeng(false);
         $response = $curl->request($url.'/v1/api.doc', "POST", [
             '_method' => 'servStatus',
             'appkey' => App::config()->get('app.app_key'),

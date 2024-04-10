@@ -10,6 +10,8 @@ declare (strict_types=1);
 
 namespace zhanshop;
 
+use zhanshop\console\TaskManager;
+
 class Error extends \Error
 {
     const OK = 0;
@@ -71,7 +73,9 @@ class Error extends \Error
         // 无法提前捕获的错误
         $error = error_get_last();
         if(isset($error['message'])){
-            Log::errorLog(5, $error['message']);
+            Log::errorLog(5, "发生致命错误: ".$error['message']);
+            $server = App::make(TaskManager::class, [null])->getServer();
+            if($server) $server->reload();
         }
 
     }

@@ -46,6 +46,14 @@ class SchemaService
                 $newSchema[$kk]['width'] = $oldSchema[$kk]['width'] ?? $vv['width'];
                 $newSchema[$kk]['value_menu'] = $oldSchema[$kk]['value_menu'] ?? $vv['value_menu'];
                 $newSchema[$kk]['input_type'] = $oldSchema[$kk]['input_type'] ?? $vv['input_type'];
+                if(isset($oldSchema[$kk]['templet']) && $oldSchema[$kk]['templet']) $newSchema[$kk]['templet'] = $oldSchema[$kk]['templet'];
+                if(isset($oldSchema[$kk]['edit']) && $oldSchema[$kk]['edit']) $newSchema[$kk]['edit'] = $oldSchema[$kk]['edit'];
+                if(isset($oldSchema[$kk]['escape']) && $oldSchema[$kk]['escape']) $newSchema[$kk]['escape'] = $oldSchema[$kk]['escape'];
+                if(isset($oldSchema[$kk]['sort']) && $oldSchema[$kk]['sort']) $newSchema[$kk]['sort'] = $oldSchema[$kk]['sort'];
+                if(isset($oldSchema[$kk]['unresize']) && $oldSchema[$kk]['unresize']) $newSchema[$kk]['unresize'] = $oldSchema[$kk]['unresize'];
+                if(isset($oldSchema[$kk]['event']) && $oldSchema[$kk]['event']) $newSchema[$kk]['event'] = $oldSchema[$kk]['event'];
+                if(isset($oldSchema[$kk]['style']) && $oldSchema[$kk]['style']) $newSchema[$kk]['style'] = $oldSchema[$kk]['style'];
+                if(isset($oldSchema[$kk]['align']) && $oldSchema[$kk]['align']) $newSchema[$kk]['align'] = $oldSchema[$kk]['align'];
             }
         }
         return $newSchema;

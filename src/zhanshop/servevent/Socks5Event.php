@@ -12,6 +12,7 @@ namespace zhanshop\servevent;
 
 use zhanshop\App;
 use zhanshop\proxy\Proxy;
+use zhanshop\proxy\ProxyService;
 
 
 class Socks5Event
@@ -65,7 +66,7 @@ class Socks5Event
      * @return void
      */
     public function onConnect($server, $fd, $reactorId) :void{
-        App::make(Proxy::class, [$server, $this])->connect($fd);
+        //App::make(ProxyService::class, [$server])->($fd);
     }
 
     /**
@@ -76,7 +77,7 @@ class Socks5Event
      * @return void
      */
     public function onReceive($server, $fd, $reactorId, $data) :void{
-        App::make(Proxy::class, [$server, $this])->socks5Command($fd, $data);
+        App::make(ProxyService::class, [$server])->socks5Message($fd, $data);
     }
 
     /**
@@ -86,7 +87,6 @@ class Socks5Event
      * @return void
      */
     public function onClose($server, $fd) :void{
-        //echo microtime(true).'=='.$fd.'断开'.$fd.PHP_EOL;
-        App::make(Proxy::class, [$server, $this])->close($fd);
+        App::make(ProxyService::class, [$server, $this])->close($fd);
     }
 }

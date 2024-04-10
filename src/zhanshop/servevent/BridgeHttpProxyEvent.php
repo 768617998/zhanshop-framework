@@ -17,9 +17,6 @@ use zhanshop\ShareData;
 
 class BridgeHttpProxyEvent
 {
-
-    protected $proxyMap = [];
-
     /**
      * @param \Swoole\Server $server
      * @param int $fd
@@ -27,31 +24,15 @@ class BridgeHttpProxyEvent
      */
     protected function getProxyFd(mixed $server, int $fd)
     {
-        if(isset($this->proxyMap[$fd])) return $this->proxyMap[$fd];
-
         $clientInfo = $server->getClientInfo($fd);
         if(isset($clientInfo['remote_ip']) == false){
             $server->close($fd);
             return false;
         }
 
-        $bridgeProxyFile = App::runtimePath().'/bridge:proxy:map.json';
-        $bridgeProxyMap = [];
-        if(file_exists($bridgeProxyFile)){
-            $jsonStr = file_get_contents($bridgeProxyFile);
-            $bridgeProxyMap = json_decode($jsonStr, true);
-        }
-
-        if(isset($bridgeProxyMap[$clientInfo['remote_ip']]) == false){
-            $server->close($fd);
-            return false;
-        }
-
-        $bridgeName = $bridgeProxyMap[$clientInfo['remote_ip']];
-
+        $remoteIp = $clientInfo['remote_ip'];
         foreach (ShareData::getInstance() as $row){
-            if($row['name'] == $bridgeName){
-                $this->proxyMap[$fd] = $row['fd'];
+            if(strpos($row['proxy'], $remoteIp.',') !== false){
                 return $row['fd'];
             }
         }
@@ -66,7 +47,6 @@ class BridgeHttpProxyEvent
      * @return void
      */
     public function onConnect($server, $fd, $reactorId) :void{
-
     }
 
     /**
@@ -95,7 +75,6 @@ class BridgeHttpProxyEvent
      */
     public function onClose($server, $fd) :void{
         $toFd = $this->getProxyFd($server, $fd);
-        unset($this->proxyMap[$fd]);
         if($toFd){
             $server->send($toFd, json_encode([
                     'uri' => '/v1/proxy.httpClose/'.$fd,

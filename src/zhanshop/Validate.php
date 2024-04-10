@@ -184,7 +184,7 @@ class Validate
      */
     protected function array(string $key ,mixed $val){
         if($val != null && !is_array($val)){
-            $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的数组';
+            $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的数组/字典';
         }else if($val == false) $this->data[$key] = [];
     }
 

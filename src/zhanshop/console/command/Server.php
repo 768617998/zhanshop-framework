@@ -102,7 +102,7 @@ class Server extends Command
     ];
 
     public function configure(){
-        $this->setTitle('启动HTTP服务器')->setDescription('使用该命令可以创建一个http服务器');
+        $this->setTitle('启动服务器')->setDescription('使用该命令可以创建服务器应用');
     }
 
     protected $command;
@@ -492,7 +492,7 @@ class Server extends Command
     }
 
     public function poweron(){
-        if($_SERVER['USER'] != 'root'){
+        if(($_SERVER['USER'] ?? "") != 'root'){
             App::error()->setError('请使用root用户执行该命令');
         }
 
@@ -525,7 +525,6 @@ Execenable='.$phpCommand.' '.$pwd.'/'.$_SERVER['PHP_SELF'].' server start
 [Install]
 WantedBy=multi-user.target
 ';
-
         \Swoole\Coroutine\run(function() use ($serviceFile, $serviceName, $serviceCode){
 
             file_put_contents($serviceFile, $serviceCode);

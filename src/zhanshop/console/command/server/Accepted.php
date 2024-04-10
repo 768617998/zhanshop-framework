@@ -2,9 +2,20 @@
 
 namespace zhanshop\console\command\server;
 
+use zhanshop\App;
+
 class Accepted
 {
     protected $tcpConnections = [];
+
+    /**
+     * 统计tcp连接数量
+     * @return int
+     */
+    public function count()
+    {
+        return count($this->tcpConnections);
+    }
 
     /**
      * 设置被连接的新连接
@@ -23,7 +34,7 @@ class Accepted
      */
     public function getConnection(int $fd)
     {
-        return $this->tcpConnections[$fd];
+        return $this->tcpConnections[$fd] ?? null;
     }
 
     /**

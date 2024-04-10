@@ -88,6 +88,7 @@ class WatchCode
                 return $fileInfo->getPathname();
             }, iterator_to_array($iterator));
         }catch (\Throwable $e){}
+        return [];
     }
 
     /**

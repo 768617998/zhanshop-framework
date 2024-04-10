@@ -12,6 +12,8 @@ namespace zhanshop\servevent;
 
 use zhanshop\App;
 use zhanshop\bridg\proxy\Proxy;
+use zhanshop\bridg\proxy\socks5\ProxyShake;
+use zhanshop\bridg\proxy\socks5\server\BridgeSocks5SerEvent;
 use zhanshop\console\ServerStatus;
 use zhanshop\Log;
 use zhanshop\ShareData;
@@ -20,45 +22,67 @@ use zhanshop\ShareData;
 class BridgeSocks5Event
 {
 
-    protected $proxyMap = [];
-
-    /**
-     * @param \Swoole\Server $server
-     * @param int $fd
-     * @return void
-     */
     protected function getProxyFd(mixed $server, int $fd)
     {
-        if(isset($this->proxyMap[$fd])) return $this->proxyMap[$fd];
-
         $clientInfo = $server->getClientInfo($fd);
         if(isset($clientInfo['remote_ip']) == false){
             $server->close($fd);
             return false;
         }
 
-        $bridgeProxyFile = App::runtimePath().'/bridge:proxy:map.json';
-        $bridgeProxyMap = [];
-        if(file_exists($bridgeProxyFile)){
-            $jsonStr = file_get_contents($bridgeProxyFile);
-            $bridgeProxyMap = json_decode($jsonStr, true);
-        }
-
-        if(isset($bridgeProxyMap[$clientInfo['remote_ip']]) == false){
-            $server->close($fd);
-            return false;
-        }
-
-        $bridgeName = $bridgeProxyMap[$clientInfo['remote_ip']];
-
+        $remoteIp = $clientInfo['remote_ip'];
+        $toFd = 0;
         foreach (ShareData::getInstance() as $row){
-            if($row['name'] == $bridgeName){
-                $this->proxyMap[$fd] = $row['fd'];
-                return $row['fd'];
+            if(strpos($row['proxy'], $remoteIp.',') !== false){
+                $toFd = $row['fd'];
             }
         }
+        if($toFd) return $toFd;
+        
         $server->close($fd);
         return false;
+    }
+
+    /**
+     * 认证客户端的账号密码是否满足要求
+     * @param string $userName
+     * @param string $password
+     * @return bool
+     */
+    public function authAccount(string $userName, string $password)
+    {
+        return true;
+    }
+
+    /**
+     * 认证客户端的ip地址是否允许连接到代理服务器
+     * @param string $ipAddress
+     * @return bool
+     */
+    public function authIpAddress(string $ipAddress)
+    {
+        return true;
+    }
+    /**
+     * 认证客户端的要访问的域名是否是否允许访问
+     * @param string $ipAddress
+     * @return bool
+     */
+    public function authTargetHost(string $host)
+    {
+        return true;
+    }
+
+    /**
+     * 目标服务器发来响应
+     * @param \Swoole\Server $server
+     * @param int $fd
+     * @param string $data
+     * @return void
+     */
+    public function targetResponse($server, $fd, $data)
+    {
+        $server->send($fd, $data);
     }
 
     /**
@@ -68,6 +92,8 @@ class BridgeSocks5Event
      * @return void
      */
     public function onConnect($server, $fd, $reactorId) :void{
+        $toFd = $this->getProxyFd($server, $fd);
+        if ($toFd) App::make(BridgeSocks5SerEvent::class)->connect($server, $fd, $toFd);
     }
 
     /**
@@ -78,14 +104,7 @@ class BridgeSocks5Event
      * @return void
      */
     public function onReceive($server, $fd, $reactorId, $data) :void{
-        $toFd = $this->getProxyFd($server, $fd);
-        if($toFd){
-            $server->send($toFd, json_encode([
-                    'uri' => '/v1/proxy.socks5Message/'.$fd,
-                    'header' => [],
-                    'body' => base64_encode($data)
-                ])."\r\n");
-        }
+        App::make(BridgeSocks5SerEvent::class)->receive($server, $fd, $data);
     }
 
 
@@ -96,14 +115,6 @@ class BridgeSocks5Event
      * @return void
      */
     public function onClose($server, $fd) :void{
-        $toFd = $this->getProxyFd($server, $fd);
-        unset($this->proxyMap[$fd]);
-        if($toFd){
-            $server->send($toFd, json_encode([
-                    'uri' => '/v1/proxy.socks5Close/'.$fd,
-                    'header' => [],
-                    'body' => ""
-                ])."\r\n");
-        }
+        App::make(BridgeSocks5SerEvent::class)->close($server, $fd);
     }
 }

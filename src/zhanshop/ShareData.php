@@ -52,7 +52,10 @@ class ShareData
      * @return mixed
      */
     public static function get(string $key, string $field = null){
-        return self::$instance->get($key, $field);
+        if(self::$instance){
+            return self::$instance->get($key, $field);
+        }
+        return false;
     }
 
     /**
@@ -63,7 +66,10 @@ class ShareData
      * @return float|int
      */
     public static function incr(string $key, string $column, mixed $incrby = 1){
-        return self::$instance->incr($key, $column, $incrby);
+        if(self::$instance){
+            return self::$instance->incr($key, $column, $incrby);
+        }
+        return false;
     }
     /**
      * 原子自减操作
@@ -73,7 +79,10 @@ class ShareData
      * @return float|int
      */
     public static function decr(string $key, string $column, mixed $decrby = 1){
-        return self::$instance->decr($key, $column, $decrby);
+        if(self::$instance){
+            return self::$instance->decr($key, $column, $decrby);
+        }
+        return false;
     }
 
     /**
@@ -83,7 +92,10 @@ class ShareData
      * @return bool
      */
     public static function set(mixed $key, array $value){
-        return self::$instance->set((string)$key, $value);
+        if(self::$instance){
+            return self::$instance->set((string)$key, $value);
+        }
+        return false;
     }
     /**
      * 删除key
@@ -91,7 +103,10 @@ class ShareData
      * @return bool
      */
     public static function del(string $key){
-        return self::$instance->del($key);
+        if(self::$instance){
+            return self::$instance->del($key);
+        }
+        return false;
     }
 
     /**
@@ -99,7 +114,10 @@ class ShareData
      * @return array|false
      */
     public static function stats(){
-        return self::$instance->stats();
+        if(self::$instance){
+            return self::$instance->stats();
+        }
+        return false;
     }
 
     /**
@@ -107,7 +125,10 @@ class ShareData
      * @return int
      */
     public static function count(){
-        return self::$instance->count();
+        if(self::$instance){
+            return self::$instance->count();
+        }
+        return 0;
     }
 
     /**
@@ -116,7 +137,10 @@ class ShareData
      * @return bool
      */
     public static function exist(string $key){
-        return self::$instance->exist($key);
+        if(self::$instance){
+            return self::$instance->exist($key);
+        }
+        return false;
     }
 
     /**

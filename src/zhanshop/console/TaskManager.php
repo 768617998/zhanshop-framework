@@ -21,10 +21,9 @@ class TaskManager
     {
         $this->server = $server;
     }
-
     /**
      * 获取server对象
-     * @return Swoole\Server
+     * @return \Swoole\Server
      */
     public function getServer(){
         return $this->server;

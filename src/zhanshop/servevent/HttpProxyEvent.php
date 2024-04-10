@@ -11,7 +11,9 @@ declare (strict_types=1);
 namespace zhanshop\servevent;
 
 use zhanshop\App;
+use zhanshop\proxy\HttpProxyClient;
 use zhanshop\proxy\Proxy;
+use zhanshop\proxy\ProxyService;
 
 class HttpProxyEvent
 {
@@ -64,7 +66,6 @@ class HttpProxyEvent
      * @return void
      */
     public function onConnect($server, $fd, $reactorId) :void{
-        App::make(Proxy::class, [$server, $this])->connect($fd);
     }
 
     /**
@@ -75,7 +76,7 @@ class HttpProxyEvent
      * @return void
      */
     public function onReceive($server, $fd, $reactorId, $data) :void{
-        App::make(Proxy::class, [$server, $this])->httpCommand($fd, $data);
+        App::make(HttpProxyClient::class, [$server])->httpMessage($fd, $data); 
     }
 
     /**
@@ -85,7 +86,6 @@ class HttpProxyEvent
      * @return void
      */
     public function onClose($server, $fd) :void{
-        //echo microtime(true).'=='.$fd.'断开'.$fd.PHP_EOL;
-        App::make(Proxy::class, [$server, $this])->close($fd);
+        App::make(HttpProxyClient::class, [$server])->httpClose($fd);
     }
 }

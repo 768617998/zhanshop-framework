@@ -22,7 +22,7 @@ class Curl
         'ipresolve' => 0,
         'referer' => '', // 请求来源
         'maxredirs' => 3, // 最大跳转次数
-        'encodeng' => 'gzip', // 解压编码
+        'encodeng' => '', // 解压编码 gzip
     ];
 
     /**
@@ -170,7 +170,7 @@ class Curl
         if($data){
             curl_setopt($ch, CURLOPT_POST, 1);
             if(is_array($data)){
-                $data = json_encode($data, JSON_UNESCAPED_UNICODE);
+                $data = json_encode($data);
             }
             curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
         }elseif($this->config['upload']){

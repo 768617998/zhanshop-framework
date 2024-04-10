@@ -320,4 +320,15 @@ class Request
     public function validateData(array $data, array $rules, array $message = []){
         return new Validate($data, $rules, $message);
     }
+
+    /**
+     * 获取真实IP
+     * @return string
+     */
+    public function realIp()
+    {
+        $ip = $this->header('x-real-ip');
+        if($ip && $this->header('proxy-auth') == App::config()->get("app.rproxy_auth")) return $ip;
+        return $this->server('remote_addr', "");
+    }
 }

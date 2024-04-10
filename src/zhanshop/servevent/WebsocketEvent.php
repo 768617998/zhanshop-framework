@@ -114,11 +114,7 @@ class WebsocketEvent extends ServEvent
                 }
 
                 $response->header('Last-Modified', $lastModifiedTime);
-                if(filesize($uri) > 2000000){
-                    $response->sendfile($uri);
-                }else{
-                    $response->end(file_get_contents($uri, false, null, 0, 2000000));
-                }
+                $response->sendfile($uri);
                 return true;
             }
         }catch (\Throwable $e){}
