@@ -40,4 +40,29 @@ class TaskManager
             'value' => $value
         ]);
     }
+
+    /**
+     * 发送http数据
+     * @param int $fd
+     * @param string $data
+     * @return void
+     */
+    public function sendHttp(int $fd, mixed $data)
+    {
+        $body = "HTTP/1.1 200 OK\r\n";
+        $body .= "Access-Control-Allow-Origin: *\r\n";
+        $body .= "Access-Control-Allow-Headers: *\r\n";
+        $body .= "Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE\r\n";
+        $body .= "Access-Control-Max-Age: 3600\r\n";
+        $body .= "Server: zhanshop\r\n";
+        $body .= "Connection: keep-alive\r\n";
+        if(is_array($data) || is_object($data)){
+            $body .= "Content-Type: application/json; charset=utf-8\r\n";
+            $data = json_encode($data);
+        }
+        $body .= "Content-Length: ".strlen($data)."\r\n";
+        $body .= "\r\n";
+        $body .= $data;
+        $this->server->send($fd, $body);
+    }
 }

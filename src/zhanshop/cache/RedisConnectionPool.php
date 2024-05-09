@@ -88,7 +88,7 @@ class RedisConnectionPool
             return $data;
         }catch (\Throwable $e){
             $this->recoveryRedis($redis);
-            if(strpos($e->getMessage(), 'away')){
+            if(strpos($e->getMessage(), 'away') || strpos($e->getMessage(), 'error')){
                 try{
                     $this->reconnect();
                     $redis = $this->getRedis();

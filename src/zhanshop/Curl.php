@@ -84,9 +84,14 @@ class Curl
      * @return $this
      */
     public function setUpload(string $key, string $filePath){
-        $curlFile = new \CURLFile(realpath($filePath));
-        $curlFile->setPostFilename(basename($filePath));
-        $this->config['upload'][$key] = $curlFile;
+        $realpath = realpath($filePath);
+        if($realpath){
+            $curlFile = new \CURLFile($realpath);
+            $curlFile->setPostFilename(basename($filePath));
+            $this->config['upload'][$key] = $curlFile;
+        }else{
+            $this->config['upload'][$key] = $filePath;
+        }
         return $this;
     }
 

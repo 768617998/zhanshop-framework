@@ -47,7 +47,7 @@ class Validate
      */
     public function getData(){
         if($this->errors){
-            App::error()->setError(implode(', ', $this->errors), Error::BAD_REQUEST);
+            App::error()->setError(implode(', ', $this->errors), 99999);
         }
         return $this->data;
     }
@@ -59,7 +59,7 @@ class Validate
      */
     public function errors(){
         if($this->errors){
-            App::error()->setError(implode(', ', $this->errors), Error::BAD_REQUEST);
+            App::error()->setError(implode(', ', $this->errors), 99999);
         }
     }
 

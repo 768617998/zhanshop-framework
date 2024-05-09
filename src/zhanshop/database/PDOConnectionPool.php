@@ -129,14 +129,34 @@ class PDOConnectionPool
     }
 
     /**
+     * 开启事务得到一个pdo
+     * @param $isRetry
+     * @return void
+     */
+    protected function transactionPdo($isRetry = true)
+    {
+        $pdo = $this->getPDO();
+        try {
+            $pdo->beginTransaction();
+        }catch (\Throwable $e){
+            $this->recoveryPDO($pdo);
+            $this->reconnect(); // 重连
+
+            if($isRetry) return $this->transactionPdo(false); // 重试
+
+            throw new \Exception($e->getMessage()); // 如果不是重试直接抛出错误
+        }
+        return $pdo;
+    }
+
+    /**
      * 事务回调
      * @param $call
      * @return void
      * @throws \Exception
      */
     public function transaction($call, $isRetry = true){
-        $pdo = $this->getPDO();
-        $pdo->beginTransaction();
+        $pdo = $this->transactionPdo();
         try {
             $call($pdo);
             $pdo->commit();

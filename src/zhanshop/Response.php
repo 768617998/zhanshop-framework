@@ -49,7 +49,7 @@ class Response
      */
     public function setHttpCode(int $code){
         if($code >= 10000){
-            $this->httpCode = 417;
+            $this->httpCode = App::config()->get("app.business_code", 417);
         }else{
             $this->httpCode = ($code < 200 || $code > 505) ? 500 : $code;
         }
