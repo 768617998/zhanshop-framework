@@ -15,6 +15,22 @@ use zhanshop\Curl;
 
 class Pay
 {
+    protected $config = [];
+    public function __construct()
+    {
+        $this->config = new Config();
+    }
+
+    /**
+     * 设置配置
+     * @param string $key
+     * @param mixed $val
+     * @return void
+     */
+    public function setConfig(string $key, mixed $val)
+    {
+        $this->config->setConfig($key, $val);
+    }
     /**
      * app支付
      * @param string $orderId
@@ -27,20 +43,18 @@ class Pay
     {
         $url = 'https://api.mch.weixin.qq.com/v3/pay/transactions/app';
 
-        $config = App::make(Config::class);
-
         $data = [
-            'mchid' => $config->get('mchid'),
-            'appid' => $config->get('appid'),
+            'mchid' => $this->config->get('mchid'),
+            'appid' => $this->config->get('appid'),
             'out_trade_no' => $orderId,
             'description' => $orderId.'订单',
             'attach' => json_encode($attach),
             'amount' => [
-                'total' => $amount * 1000,
-                'currency' => $config->get('currency', 'CNY'),
+                'total' => $amount * 100,
+                'currency' => $this->config->get('currency', 'CNY'),
             ],
-            'notify_url' => $config->get('notifyurl').'/weixinapppay',
-            'time_expire' => str_replace(' ', 'T', date('Y-m-d H:i:s', time() + $config->get('timeout'))).'+08:00'
+            'notify_url' => $this->config->get('notifyurl').'/appwxpay',
+            'time_expire' => str_replace(' ', 'T', date('Y-m-d H:i:s', time() + $this->config->get('timeout'))).'+08:00'
         ];
 
         if($other) $data = array_merge($data, $other);
@@ -50,40 +64,29 @@ class Pay
         $curl->seEncodeng(false);
         $curl->setHeader('Accept', 'application/json');
         $curl->setHeader('Content-Type', 'application/json');
-        $nonce = $config->getNonce();
+        $nonce = $this->config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
 
-        $signature = $config->sign(implode("\n", [
+        $signature = $this->config->sign(implode("\n", [
                 'POST', $path, $timestamp, $nonce, json_encode($data)
-            ])."\n", $config->get('privatekey'));
-        $curl->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
+            ])."\n", $this->config->get('privatekey'));
+        $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
         $payResp = $curl->request($url, 'POST', $data, false, false);
         $payResp = json_decode($payResp['body'], true);
         $resData = [
-            "appid" => $config->get('appid'),  // 微信开放平台 - 应用 - AppId，注意和微信小程序、公众号 AppId 可能不一致
+            "appid" => $this->config->get('appid'),  // 微信开放平台 - 应用 - AppId，注意和微信小程序、公众号 AppId 可能不一致
             "noncestr" => substr(md5((string)microtime(true)),8,16), // 随机字符串
             "package" => "Sign=WXPay",        // 固定值
-            "partnerid" => $config->get('mchid'),      // 微信支付商户号
+            "partnerid" => $this->config->get('mchid'),      // 微信支付商户号
             "prepayid" => $payResp['prepay_id'], // 统一下单订单号
-            //"sign" => "A842B45937F6EFF60DEC7A2EAA52D5A0" // 签名，这里用的 MD5 签名
         ];
-
-        $p =  ksort($resData);
-        $strs = '';
-        if($p){
-            $str = '';
-            foreach ($resData as $k=>$val){
-                $str .= $k .'=' . $val . '&';
-            }
-            $strs = rtrim($str, '&');
-        }
-
-        $stringA = $strs;
-        $stringSignTemp = $stringA."&key=".$config->get('aeskey'); //注：key为商户平台设置的密钥key
-        $stringSignTemp = strtoupper(md5($stringSignTemp));
-        $resData['sign'] = $stringSignTemp;
-        $resData["timestamp"] = time();        // 时间戳（单位：秒）
+        // 对App支付进行签名
+        $time = strval(time());
+        $sign = $this->config->sign(join("\n", [$resData['appid'], $time, $resData['noncestr'], $resData['prepayid'], '']), $this->config->get('privatekey'));
+        $resData['package'] = 'Sign=WXPay';
+        $resData['timestamp'] = $time;
+        $resData['sign'] = $sign;
         return $resData;
     }
 
@@ -98,18 +101,17 @@ class Pay
     public function wap(string $orderId, float $amount, array $attach, $other = [])
     {
         $url = 'https://api.mch.weixin.qq.com/v3/pay/transactions/h5';
-        $config = App::make(Config::class);
         $data = [ // JSON请求体
-            'mchid' => $config->get('mchid'),
-            'appid' => $config->get('appid'),
+            'mchid' => $this->config->get('mchid'),
+            'appid' => $this->config->get('appid'),
             'out_trade_no' => $orderId,
             'description' => $orderId.'订单',
-            'notify_url' => $config->get('notifyurl').'/weixinwappay',
+            'notify_url' => $this->config->get('notifyurl').'/wapwxpay',
             'amount' => [
                 "total" => $amount * 100,
-                "currency" => $config->get('currency', 'CNY'),
+                "currency" => $this->config->get('currency', 'CNY'),
             ],
-            'time_expire' => str_replace(' ', 'T', date('Y-m-d H:i:s', time() + $config->get('timeout'))).'+08:00',
+            'time_expire' => str_replace(' ', 'T', date('Y-m-d H:i:s', time() + $this->config->get('timeout'))).'+08:00',
             'scene_info' => [
                 "payer_client_ip" => '114.114.114.114',
                 "h5_info" => [
@@ -125,14 +127,14 @@ class Pay
         $curl->seEncodeng(false);
         $curl->setHeader('Accept', 'application/json');
         $curl->setHeader('Content-Type', 'application/json');
-        $nonce = $config->getNonce();
+        $nonce = $this->config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
 
-        $signature = $config->sign(implode("\n", [
+        $signature = $this->config->sign(implode("\n", [
                 'POST', $path, $timestamp, $nonce, json_encode($data)
-            ])."\n", $config->get('privatekey'));
-        $curl->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
+            ])."\n", $this->config->get('privatekey'));
+        $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
         $payResp = $curl->request($url, 'POST', $data, false, false);
         return json_decode($payResp['body'], true);
     }
@@ -148,18 +150,17 @@ class Pay
     public function js(string $orderId, float $amount, array $attach, $other = [])
     {
         $url = 'https://api.mch.weixin.qq.com/v3/pay/transactions/jsapi';
-        $config = App::make(Config::class);
         $data = [ // JSON请求体
-            'mchid' => $config->get('mchid'),
-            'appid' => $config->get('appid'),
+            'mchid' => $this->config->get('mchid'),
+            'appid' => $this->config->get('appid'),
             'out_trade_no' => $orderId,
             'description' => $orderId.'订单',
-            'notify_url' => $config->get('notifyurl').'/weixinwappay',
+            'notify_url' => $this->config->get('notifyurl').'/jswxpay',
             'amount' => [
                 "total" => $amount * 100,
-                "currency" => $config->get('currency', 'CNY'),
+                "currency" => $this->config->get('currency', 'CNY'),
             ],
-            'time_expire' => str_replace(' ', 'T', date('Y-m-d H:i:s', time() + $config->get('timeout'))).'+08:00',
+            'time_expire' => str_replace(' ', 'T', date('Y-m-d H:i:s', time() + $this->config->get('timeout'))).'+08:00',
             'scene_info' => [
                 "payer_client_ip" => '114.114.114.114',
                 "h5_info" => [
@@ -175,14 +176,15 @@ class Pay
         $curl->seEncodeng(false);
         $curl->setHeader('Accept', 'application/json');
         $curl->setHeader('Content-Type', 'application/json');
-        $nonce = $config->getNonce();
+        $nonce = $this->config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
 
-        $signature = $config->sign(implode("\n", [
+
+        $signature = $this->config->sign(implode("\n", [
                 'POST', $path, $timestamp, $nonce, json_encode($data)
-            ])."\n", $config->get('privatekey'));
-        $curl->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
+            ])."\n", $this->config->get('privatekey'));
+        $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
         $payResp = $curl->request($url, 'POST', $data, false, false);
 
         if($payResp['code'] != 200) App::error()->setError($payResp['body'], $payResp['code']);
@@ -190,29 +192,62 @@ class Pay
         $payResp = json_decode($payResp['body'], true);
 
         $resData = [
-            "appid" => $config->get('appid'),  // 微信开放平台 - 应用 - AppId，注意和微信小程序、公众号 AppId 可能不一致
+            "appid" => $this->config->get('appid'),  // 微信开放平台 - 应用 - AppId，注意和微信小程序、公众号 AppId 可能不一致
             "noncestr" => substr(md5((string)microtime(true)),8,16), // 随机字符串
             "package" => "Sign=WXPay",        // 固定值
-            "partnerid" => $config->get('mchid'),      // 微信支付商户号
+            "partnerid" => $this->config->get('mchid'),      // 微信支付商户号
             "prepayid" => $payResp['prepay_id'], // 统一下单订单号
-            //"sign" => "A842B45937F6EFF60DEC7A2EAA52D5A0" // 签名，这里用的 MD5 签名
         ];
 
-        $p =  ksort($resData);
-        $strs = '';
-        if($p){
-            $str = '';
-            foreach ($resData as $k=>$val){
-                $str .= $k .'=' . $val . '&';
-            }
-            $strs = rtrim($str, '&');
-        }
+        $time = strval(time());
 
-        $stringA = $strs;
-        $stringSignTemp = $stringA."&key=".$config->get('aeskey'); //注：key为商户平台设置的密钥key
-        $stringSignTemp = strtoupper(md5($stringSignTemp));
-        $resData['sign'] = $stringSignTemp;
-        $resData["timestamp"] = time();        // 时间戳（单位：秒）
+        $sign = $this->signBuild(join("\n", [$resData['appid'], $time, $resData['noncestr'], "prepay_id={$resData['prepayid']}", '']), $this->config->get('privatekey'));
+        $resData['timestamp'] = $time;
+        $resData['signtype'] = 'RSA';
+        $resData['sign'] = $sign;
         return $resData;
+    }
+
+    /**
+     * Native支付
+     * @param string $orderId
+     * @param float $amount
+     * @param array $attach
+     * @param $other
+     * @return array
+     */
+    public function native(string $orderId, float $amount, array $attach, $other = [])
+    {
+        $url = 'https://api.mch.weixin.qq.com/v3/pay/transactions/native';
+        $data = [ // JSON请求体
+            'mchid' => $this->config->get('mchid'),
+            'appid' => $this->config->get('appid'),
+            'out_trade_no' => $orderId,
+            'description' => $orderId.'订单',
+            'notify_url' => $this->config->get('notifyurl').'/nativewxpay',
+            'amount' => [
+                "total" => $amount * 100,
+                "currency" => $this->config->get('currency', 'CNY'),
+            ],
+            'time_expire' => str_replace(' ', 'T', date('Y-m-d H:i:s', time() + $this->config->get('timeout'))).'+08:00',
+            'attach' => json_encode($attach), // 进行编码
+        ];
+
+        if($other) $data = array_merge($data, $other);
+
+        $curl = new Curl();
+        $curl->seEncodeng(false);
+        $curl->setHeader('Accept', 'application/json');
+        $curl->setHeader('Content-Type', 'application/json');
+        $nonce = $this->config->getNonce();
+        $timestamp = strval(time());
+        $path = parse_url($url, PHP_URL_PATH);
+
+        $signature = $this->config->sign(implode("\n", [
+                'POST', $path, $timestamp, $nonce, json_encode($data)
+            ])."\n", $this->config->get('privatekey'));
+        $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
+        $payResp = $curl->request($url, 'POST', $data, false, false);
+        return json_decode($payResp['body'], true);
     }
 }

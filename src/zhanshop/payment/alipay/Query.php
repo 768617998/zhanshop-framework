@@ -15,6 +15,22 @@ use zhanshop\Curl;
 
 class Query
 {
+    protected $config = [];
+    public function __construct()
+    {
+        $this->config = new Config();
+    }
+
+    /**
+     * 设置配置
+     * @param string $key
+     * @param mixed $val
+     * @return void
+     */
+    public function setConfig(string $key, mixed $val)
+    {
+        $this->config->setConfig($key, $val);
+    }
     /**
      * 查询某个订单
      * @param string $orderId
@@ -37,11 +53,12 @@ class Query
         $curl = new Curl();
         $resp = $curl->request($config->get('gateway'), 'POST', http_build_query($params));
         $json = json_decode($resp['body'], true);
-        if($json == false){
+        if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
+            return current($json);
         }
-        return current($json);
+        App::error()->setError("订单查询失败");
     }
 
     /**
@@ -64,12 +81,12 @@ class Query
         $params = $config->signParams($data, 'query');
         $curl = new Curl();
         $resp = $curl->request($config->get('gateway'), 'POST', http_build_query($params));
-        $json = json_decode($resp['body'], true);
-        if($json == false){
+        if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
+            return current($json);
         }
-        return current($json);
+        App::error()->setError("退款订单查询失败");
     }
 
     /**
@@ -94,11 +111,39 @@ class Query
         $params = $config->signParams($data, 'query');
         $curl = new Curl();
         $resp = $curl->request($config->get('gateway'), 'POST', http_build_query($params));
-        $json = json_decode($resp['body'], true);
-        if($json == false){
+        if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
+            return current($json);
         }
-        return current($json);
+        App::error()->setError("对账单查询失败");
+    }
+
+    /**
+     * 代扣协议查询
+     * @param $number
+     * @param array $other
+     * @return false|mixed|void
+     * @throws \Exception
+     */
+    public function signNo($number, array $other = [])
+    {
+        $data = [
+            'method' => 'alipay.user.agreement.query',
+            'personal_product_code' => 'CYCLE_PAY_AUTH_P',
+            'external_agreement_no' => $number,
+            'sign_scene' => 'INDUSTRY|CARRENTAL',
+        ];
+
+        if($other) $data = array_merge($data, $other);
+        $params = $this->config->signParams($data, 'query');
+        $curl = new Curl();
+        $resp = $curl->request($config->get('gateway'), 'POST', http_build_query($params));
+        if($resp['body']){
+            $body = iconv("GBK", "UTF-8", $resp['body']);
+            $json = json_decode($body, true);
+            return current($json);
+        }
+        App::error()->setError("代扣协议查询失败");
     }
 }

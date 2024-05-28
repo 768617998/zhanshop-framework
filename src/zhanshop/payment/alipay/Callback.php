@@ -14,6 +14,22 @@ use zhanshop\App;
 
 class Callback
 {
+    protected $config = [];
+    public function __construct()
+    {
+        $this->config = new Config();
+    }
+
+    /**
+     * 设置配置
+     * @param string $key
+     * @param mixed $val
+     * @return void
+     */
+    public function setConfig(string $key, mixed $val)
+    {
+        $this->config->setConfig($key, $val);
+    }
     /**
      * 支付回调
      * @param array $params
@@ -21,16 +37,11 @@ class Callback
      * @return string|void
      * @throws \Exception
      */
-    public function pay(array $params, callable $callBack)
+    public function pay(array &$params, callable $callBack)
     {
-        $config = App::make(Config::class);
-        if($config->verify($params)){
-            try {
-                $callBack();
-            }catch (\Throwable $e){
-                // 触发退款
-                App::make(Refund::class)->pay($params['out_trade_no'], $data['total_amount'], $e->getMessage());
-            }
+        if($this->config->verify($params)){
+            $callBack();
+            // 异常错误的退款请在业务代码上实现
             return 'success';
         }
         App::error()->setError('支付签名验证失败');

@@ -11,6 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\alipay;
 
 use zhanshop\App;
+use zhanshop\Curl;
 
 class Config
 {
@@ -50,7 +51,19 @@ class Config
     {
         $config = App::config()->get("pay.ali");
         if($config) $this->config = array_merge($this->config, $config);
+        if($this->config['privatekey'] == false) App::error()->setError("支付宝私钥未配置");
+        if($this->config['publickey'] == false) App::error()->setError("支付宝公钥未配置");
+    }
 
+    /**
+     * 设置配置
+     * @param string $key
+     * @param mixed $val
+     * @return void
+     */
+    public function setConfig(string $key, mixed $val)
+    {
+        $this->config[$key] = $val;
     }
 
     /**
@@ -70,15 +83,15 @@ class Config
      * @param $data
      * @return array
      */
-    public function signParams(&$data, $type = 'appalipay')
+    public function signParams(&$data, $type)
     {
         $systemParams = [
-            "method" => $data['method'],
+            "method" => $data['method'],//"alipay.trade.app.pay",
             "app_id" => $this->config['appid'],
             "timestamp" => date('Y-m-d H:i:s'),
             "format" => "json",
-            "version" => $this->config['version'],
-            "alipay_sdk" => $this->config['sdkname'],
+            "version" => "1.0",
+            "alipay_sdk" => 'alipay-easysdk-php-2.2.3',
             "charset" => "UTF-8",
             "sign_type" => $this->config['signtype'],
             "app_cert_sn" => null,
@@ -89,8 +102,6 @@ class Config
 
         $systemParams['biz_content'] = json_encode($data, JSON_UNESCAPED_UNICODE);
         $systemParams['notify_url'] = $this->config['notify'].'/'.$type;
-        $systemParams['return_url'] = $this->config['return_url'].'/'.($data['out_trade_no'] ?? '0');
-
         ksort($systemParams);
         $stringToBeSigned = "";
         $i = 0;
@@ -115,6 +126,7 @@ class Config
         if($res == false) throw new Exception('您使用的私钥格式错误，请检查RSA私钥配置', 400);
         openssl_sign($stringToBeSigned, $sign, $res, OPENSSL_ALGO_SHA256);
         $sign = base64_encode($sign);
+        //unset($systemParams['biz_content']);
         $systemParams['sign'] = $sign;
         return $systemParams;
     }
@@ -183,5 +195,32 @@ class Config
             }
         }catch (\Throwable $e){}
         return false;
+    }
+
+    /**
+     * 更新签约支付
+     * @param $signNo
+     * @param $deductTime
+     * @param $memo
+     * @return void
+     */
+    public function updatesign($signNo, $deductTime, $memo = "下个月扣款", $other = [])
+    {
+        $data = [
+            'method' => 'alipay.user.agreement.executionplan.modify',
+            'deduct_time' => date('Y-m-d', $deductTime),
+            'memo' => $memo
+        ];
+
+        if($other) $data = array_merge($data, $other);
+        $params = $this->signParams($data, 'query');
+        $curl = new Curl();
+        $resp = $curl->request($this->get('gateway'), 'POST', http_build_query($params));
+        if($resp['body']){
+            $body = iconv("GBK", "UTF-8", $resp['body']);
+            $json = json_decode($body, true);
+            return current($json);
+        }
+        App::error()->setError("更新签约协议失败");
     }
 }

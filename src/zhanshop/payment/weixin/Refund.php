@@ -22,18 +22,19 @@ class Refund
      * @param string $reason
      * @return array
      */
-    public function pay(string $orderId, float $amount, string $reason = "", $other = [])
+    public function pay(string $orderId, float $amount, string $reason = "系统退款", $other = [])
     {
         $url = 'https://api.mch.weixin.qq.com/v3/refund/domestic/refunds';
         $config = App::make(Config::class);
         $data = [ // JSON请求体
-            'mchid' => $config->get('mchid'),
-            'appid' => $config->get('appid'),
+            //'mchid' => $config->get('mchid'),//$config[''],
+            //'appid' => $config->get('appid'),
             'out_trade_no' => $orderId,
             'out_refund_no' => $orderId,
             'reason' => $reason,
-            'notify_url' => $config->get('notifyurl').'/refundweixinpay',
+            //'notify_url' => $config['notifyurl'].'/refundwxpay',
             'amount' => [
+                'refund' => $amount * 100,
                 "total" => $amount * 100,
                 "currency" => $config->get('currency', 'CNY'),
             ],

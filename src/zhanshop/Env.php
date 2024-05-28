@@ -72,6 +72,20 @@ class Env
         return $this->getEnv($name, $default);
     }
 
+    /**
+     * 获取环境变量指向的文件
+     * @param string|null $path
+     * @return false|string
+     */
+    public function getFileData(string $name = null)
+    {
+        $path = $this->get($name);
+        if($path && file_exists($path)){
+            return file_get_contents($path);
+        }
+        return "";
+    }
+
     protected function getEnv(string $name, $default = null)
     {
         $result = getenv('PHP_' . $name);

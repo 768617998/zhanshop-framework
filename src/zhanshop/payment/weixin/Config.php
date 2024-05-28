@@ -58,8 +58,21 @@ R9hk0fdHgX6raoKdQbqZJcYc
     {
         $config = App::config()->get("pay.weixin");
         if($config) $this->config = array_merge($this->config, $config);
-
+        if($this->config['privatekey'] == false) App::error()->setError("微信私钥未配置");
+        if($this->config['publickey'] == false) App::error()->setError("微信公钥未配置");
     }
+
+    /**
+     * 设置配置
+     * @param string $key
+     * @param mixed $val
+     * @return void
+     */
+    public function setConfig(string $key, mixed $val)
+    {
+        $this->config[$key] = $val;
+    }
+
 
     /**
      * 获取配置
@@ -73,7 +86,12 @@ R9hk0fdHgX6raoKdQbqZJcYc
         return $this->config[$name] ?? $default;
     }
 
-    //////////////////////////////////////////////////////////
+    /**
+     * 签名
+     * @param string $message
+     * @param $privateKey
+     * @return string
+     */
     public function sign(string $message, $privateKey): string
     {
         if (!openssl_sign($message, $signature, $privateKey, OPENSSL_ALGO_SHA256)) {
@@ -83,6 +101,7 @@ R9hk0fdHgX6raoKdQbqZJcYc
 
         return base64_encode($signature);
     }
+
     public function authorization(string $mchid, string $nonce, string $signature, string $timestamp, string $serial): string
     {
         return sprintf(
@@ -100,37 +119,42 @@ R9hk0fdHgX6raoKdQbqZJcYc
             return '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'[ord($c) % 62];
         }, str_split(random_bytes($size))));
     }
-    public function verify(string $message, string $signature, $publicKey)
+
+    /**
+     * 验证微信信息解密得到一个json字符串
+     * @param $associatedData
+     * @param $nonceStr
+     * @param $ciphertext
+     * @return false|string
+     * @throws \Exception
+     */
+    public function verify($associatedData, $nonceStr, $ciphertext)
     {
-        if (($result = openssl_verify($message, base64_decode($signature), $publicKey, OPENSSL_ALGO_SHA256)) === false) {
-
-            throw new Exception('Verified the input $message failed, please checking your $publicKey whether or nor correct.', 400);
+        $ciphertext = \base64_decode($ciphertext);
+        if (strlen($ciphertext) <= 16) {
+            return "";
         }
-
-        return $result === 1;
-    }
-    public function decrypt(string $ciphertext, string $key, string $iv = '', string $aad = ''): string
-    {
-        if (!in_array('aes-256-gcm', openssl_get_cipher_methods())) {
-            throw new Exception('It looks like the ext-openssl extension missing the `aes-256-gcm` cipher method.', 400);
+        try {
+            // ext-sodium (default installed on >= PHP 7.2)
+            if (function_exists('\sodium_crypto_aead_aes256gcm_is_available') && \sodium_crypto_aead_aes256gcm_is_available()) {
+                return \sodium_crypto_aead_aes256gcm_decrypt($ciphertext, $associatedData, $nonceStr, $this->config['aeskey']);
+            }
+            // ext-libsodium (need install libsodium-php 1.x via pecl)
+            if (function_exists('\Sodium\crypto_aead_aes256gcm_is_available') && \Sodium\crypto_aead_aes256gcm_is_available()) {
+                return \Sodium\crypto_aead_aes256gcm_decrypt($ciphertext, $associatedData, $nonceStr, $this->config['aeskey']);
+            }
+            // openssl (PHP >= 7.1 support AEAD)
+            if (PHP_VERSION_ID >= 70100 && in_array('aes-256-gcm', \openssl_get_cipher_methods())) {
+                $ctext = substr($ciphertext, 0, -16);
+                $authTag = substr($ciphertext, -16);
+                return \openssl_decrypt($ctext, 'aes-256-gcm', $this->config['aeskey'], \OPENSSL_RAW_DATA, $nonceStr, $authTag, $associatedData);
+            }
+        } catch (\Exception $exception) {
+            throw new \Exception($exception->getMessage(), $exception->getCode());
+        } catch (\SodiumException $exception) {
+            throw new \Exception($exception->getMessage(), $exception->getCode());
         }
-
-        $ciphertext = base64_decode($ciphertext);
-        $authTag = substr($ciphertext, $tailLength = 0 - 16);
-        $tagLength = strlen($authTag);
-
-        /* Manually checking the length of the tag, because the `openssl_decrypt` was mentioned there, it's the caller's responsibility. */
-        if ($tagLength > 16 || ($tagLength < 12 && $tagLength !== 8 && $tagLength !== 4)) {
-            throw new RuntimeException('The inputs `$ciphertext` incomplete, the bytes length must be one of 16, 15, 14, 13, 12, 8 or 4.');
-        }
-
-        $plaintext = openssl_decrypt(substr($ciphertext, 0, $tailLength), 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $authTag, $aad);
-
-        if (false === $plaintext) {
-            throw new Exception('Decrypting the input $ciphertext failed, please checking your $key and $iv whether or nor correct.', 400);
-        }
-
-        return $plaintext;
+        throw new \Exception('AEAD_AES_256_GCM 需要 PHP 7.1 以上或者安装 libsodium-php');
     }
 
 }
