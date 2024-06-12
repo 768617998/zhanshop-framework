@@ -61,12 +61,17 @@ class PDOConnectionPool
         if (!$statement) {
             throw new RuntimeException('Prepare failed');
         }
+        $startTime = microtime(true);
         $result = $statement->execute($bind);
         if (!$result) {
             throw new RuntimeException('Execute failed');
         }
         $result = $statement->fetchAll();
+        ob_start();
+        $statement->debugDumpParams();
+        $debugInfo = ob_get_clean();
         $statement->closeCursor();
+        $this->debugSql($debugInfo, $startTime);
         return $result;
     }
 
@@ -77,10 +82,12 @@ class PDOConnectionPool
      * @return mixed
      */
     protected function _execute(mixed $pdo, string $sql, array $bind = [], bool $lastID = false){
+
         $statement = $pdo->prepare($sql);
         if (!$statement) {
             throw new RuntimeException('Prepare failed');
         }
+        $startTime = microtime(true);
         $result = $statement->execute($bind);
         if (!$result) {
             throw new RuntimeException('Execute failed');
@@ -90,8 +97,11 @@ class PDOConnectionPool
         }else{
             $result = $statement->rowCount();
         }
-
+        ob_start();
+        $statement->debugDumpParams();
+        $debugInfo = ob_get_clean();
         $statement->closeCursor();
+        $this->debugSql($debugInfo, $startTime);
         return $result;
     }
 
@@ -103,7 +113,7 @@ class PDOConnectionPool
      * @throws \Exception
      */
     public function query($sql, array $bind = [], $pdo = null){
-        $startTime = microtime(true);
+
         if($pdo){
             $result = $this->_query($pdo, $sql, $bind);
         }else{
@@ -121,10 +131,8 @@ class PDOConnectionPool
                 }else{
                     throw new \Exception($e->getMessage().',sql:'.$sql.','.json_encode($bind, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE), (int)$e->getCode());
                 }
-                //throw new \Exception($e->getMessage().',sql:'.$sql.','.json_encode($bind));
             }
         }
-        App::log()->push($sql.'【耗时：】'.(microtime(true) - $startTime), 'SQL');
         return $result;
     }
 
@@ -184,7 +192,6 @@ class PDOConnectionPool
      * @throws \Exception
      */
     public function execute(string $sql, array $bind = [], bool $lastId = false, mixed $pdo = null){
-        $startTime = microtime(true);
         if($pdo){
             $result = $this->_execute($pdo, $sql, $bind, $lastId);
         }else{
@@ -204,7 +211,6 @@ class PDOConnectionPool
                 }
             }
         }
-        //App::log()->push($sql.'【耗时：】'.(microtime(true) - $startTime), 'SQL');
         return $result;
     }
 
@@ -240,6 +246,22 @@ class PDOConnectionPool
      */
     public function drive(){
         return $this->drive;
+    }
+
+    protected function debugSql(string $debugDump, float $startTime)
+    {
+        try {
+            $arr = explode("\n", $debugDump);
+            $sql = $arr[1];
+            if(strpos($sql, 'Sent SQL') === false){
+                $sql = $arr[0];
+            }
+            $index = strpos($sql, "] ");
+            $sql = substr($sql, $index+2).' 【runtime:'.(microtime(true) - $startTime).'】';
+            App::log()->push($sql, "SQL");
+        }catch (\Throwable $exception){
+            App::log()->push($exception->getMessage(), "ERROR");
+        }
     }
 
     public function __destruct()

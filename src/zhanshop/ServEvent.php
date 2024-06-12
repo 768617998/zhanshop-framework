@@ -91,6 +91,7 @@ class ServEvent
      * @return void
      */
     public function onStart($server) :void{
+        App::config()->loadIni();
         $msg = "启动工作进程数".($server->setting['worker_num']).', 任务工作进程'.($server->setting['task_worker_num']).', swoole'.swoole_version().', 环境'.($_SERVER['APP_ENV'] ?? 'dev');
         Log::errorLog(SWOOLE_LOG_NOTICE, $msg);
         App::make(Robot::class)->send($msg);
@@ -103,6 +104,7 @@ class ServEvent
      * @return void
      */
     public function onWorkerStart($server, $workerId) :void{
+        App::config()->loadIni();
         $msg = $workerId."号工作进程启动, 进程".getmypid();
         Log::errorLog(SWOOLE_LOG_DEBUG, $msg);
         App::make(Robot::class)->send($msg);

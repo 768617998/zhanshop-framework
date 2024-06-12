@@ -11,8 +11,6 @@ declare (strict_types=1);
 
 namespace zhanshop;
 
-use zhanshop\console\command\ApiCreate;
-use zhanshop\console\command\ApiDoc;
 use zhanshop\console\command\ApiRoute;
 use zhanshop\console\command\CallScript;
 use zhanshop\console\command\Help;
@@ -146,10 +144,7 @@ class Console{
      * 初始化操作
      */
     protected function init(){
-        $inis = App::config()->get('ini');
-        foreach ($inis as $k => $v){
-            ini_set($k, $v);
-        }
+        App::config()->loadIni();
 
         $isPhar = $_SERVER['SCRIPT_IS_PHAR'] ?? false;
         if($isPhar) unset($this->commands['pmake']);

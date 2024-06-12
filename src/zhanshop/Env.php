@@ -90,7 +90,10 @@ class Env
     {
         $result = getenv('PHP_' . $name);
         if (false === $result) {
-            $result = $this->data[$name] ?? $default;
+            $result = $this->data[$name] ?? null;
+            if($result === null){
+                $result = $_SERVER[$name] ?? $default;
+            }
         }
 
         if ('false' === $result) {

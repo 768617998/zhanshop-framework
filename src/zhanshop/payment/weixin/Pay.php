@@ -73,6 +73,9 @@ class Pay
             ])."\n", $this->config->get('privatekey'));
         $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
         $payResp = $curl->request($url, 'POST', $data, false, false);
+        if($payResp['code'] != 200){
+            App::error()->setError($payResp['body']);
+        }
         $payResp = json_decode($payResp['body'], true);
         $resData = [
             "appid" => $this->config->get('appid'),  // 微信开放平台 - 应用 - AppId，注意和微信小程序、公众号 AppId 可能不一致
@@ -136,6 +139,9 @@ class Pay
             ])."\n", $this->config->get('privatekey'));
         $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
         $payResp = $curl->request($url, 'POST', $data, false, false);
+        if($payResp['code'] != 200){
+            App::error()->setError($payResp['body']);
+        }
         return json_decode($payResp['body'], true);
     }
 
@@ -248,6 +254,9 @@ class Pay
             ])."\n", $this->config->get('privatekey'));
         $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
         $payResp = $curl->request($url, 'POST', $data, false, false);
+        if($payResp['code'] != 200){
+            App::error()->setError($payResp['body']);
+        }
         return json_decode($payResp['body'], true);
     }
 }

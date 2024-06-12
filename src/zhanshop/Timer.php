@@ -34,8 +34,9 @@ class Timer
 
     public function __construct()
     {
-        $this->microtime = microtime(true);
+        App::config()->loadIni();
 
+        $this->microtime = microtime(true);
         // 添加一个效验时间的定时器
         STimer::tick($this->correctionInterval * 1000, [$this, 'correction']);
     }

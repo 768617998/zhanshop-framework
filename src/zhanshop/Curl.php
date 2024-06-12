@@ -23,8 +23,14 @@ class Curl
         'referer' => '', // 请求来源
         'maxredirs' => 3, // 最大跳转次数
         'encodeng' => '', // 解压编码 gzip
+        'debug' => false,
     ];
 
+    public function debug()
+    {
+        $this->config['debug'] = true;
+        return $this;
+    }
     /**
      * 更新curl参数
      * @param int $key
@@ -207,6 +213,7 @@ class Curl
         // 如果发生错误打印错误报告
         if($httpCode != 200){
             if($again){
+                $this->debugLog($url,  $method, $data, $output, $curlInfo); // 记录debug日志
                 return self::request($url,  $method, $data, $report, false); // 再次尝试
             }
         }
@@ -224,6 +231,7 @@ class Curl
         $this->config['upload'] = [];
         if($report) $outData['report'] = $curlInfo;
         curl_close($ch);
+        $this->debugLog($url,  $method, $data, $output, $curlInfo); // 记录debug日志
         return $outData;
     }
 
@@ -350,5 +358,28 @@ class Curl
         $this->config['cookie'] = '';
         $this->config['header'] = [];
         $this->config['upload'] = [];
+    }
+
+    /**
+     * 打印日志
+     * @param $url
+     * @param $method
+     * @param $data
+     * @param $output
+     * @param $curlInfo
+     * @return void
+     */
+    private function debugLog($url,  $method, $param, $output, $curlInfo)
+    {
+        if($this->config['debug']){
+            App::log()->push(json_encode([
+                'url' => $url,
+                'method' => $method,
+                'param' => $param,
+                'code' => $curlInfo['http_code'] ?? 0,
+                'resp' => $output,
+                'time' => $curlInfo['total_time'] ?? 0,
+            ]), "CURL");
+        }
     }
 }

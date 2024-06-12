@@ -55,6 +55,9 @@ class Refund
             ])."\n", $config->get('privatekey'));
         $curl->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
         $payResp = $curl->request($url, 'POST', $data, false, false);
+        if($payResp['code'] != 200){
+            App::error()->setError($payResp['body']);
+        }
         return json_decode($payResp['body'], true);
     }
 }

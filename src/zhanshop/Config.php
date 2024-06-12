@@ -196,6 +196,18 @@ class Config
         return $result;
     }
 
+    /**
+     * 载入ini配置
+     * @return void
+     */
+    public function loadIni()
+    {
+        $inis = $this->get('ini');
+        foreach ($inis as $k => $v){
+            ini_set($k, $v);
+        }
+    }
+
     // 自动注册
     private function autoloadRegister(){
         spl_autoload_register(function ($class) {
