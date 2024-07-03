@@ -105,7 +105,11 @@ class ServEvent
      */
     public function onWorkerStart($server, $workerId) :void{
         App::config()->loadIni();
-        $msg = $workerId."号工作进程启动, 进程".getmypid();
+        if($workerId < $server->setting['worker_num']) {
+            $msg = "工作进程启动, 进程".getmypid();
+        }else{
+            $msg = "任务进程启动, 进程".getmypid();
+        }
         Log::errorLog(SWOOLE_LOG_DEBUG, $msg);
         App::make(Robot::class)->send($msg);
 

@@ -22,7 +22,7 @@ use zhanshop\console\command\software\Dnscheck;
 use zhanshop\console\command\software\ScanPorts;
 use zhanshop\console\Input;
 use zhanshop\console\Output;
-use Swoole\Coroutine;
+
 /**
  * 控制台程序不要实例化控制台程序
  * @method static Help help()
@@ -107,6 +107,24 @@ class Console{
             $instance->execute($input, $this->output); // 执行控制台app
         }
 
+    }
+
+    /**
+     * 执行一个系统命令
+     * @param $command
+     * @return void
+     */
+    public function sysCommand($command)
+    {
+        if(strpos(PHP_OS,"WIN") === false){
+            try {
+                \Swoole\Coroutine\run(function() use ($command){
+                    \Swoole\Coroutine\System::exec($command);
+                });
+            }catch (Throwable $exception){
+
+            }
+        }
     }
 
     /**

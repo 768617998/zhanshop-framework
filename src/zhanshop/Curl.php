@@ -43,6 +43,38 @@ class Curl
     }
 
     /**
+     * 使用http代理
+     * @param $ipPort ip和端口 示例值：192.168.2.100:7281
+     * @param $accountPassword 账号和密码 示例值：demo:123456
+     * @return $this
+     */
+    public function httpproxy($ipPort, $accountPassword = "")
+    {
+        $this->config['opts'][CURLOPT_HTTPPROXYTUNNEL] = true;
+        $this->config['opts'][CURLOPT_PROXY] = $ipPort;
+        if($accountPassword){
+            $this->config['opts'][CURLOPT_PROXYUSERPWD] = $accountPassword;
+        }
+        return $this;
+    }
+
+    /**
+     * 使用socks5代理
+     * @param $ipPort ip和端口 示例值：192.168.2.100:7281
+     * @param $accountPassword 账号和密码 示例值：demo:123456
+     * @return $this
+     */
+    public function socks5($ipPort, $accountPassword = "")
+    {
+        $this->config['opts'][CURLOPT_PROXYTYPE] = CURLPROXY_SOCKS5;
+        $this->config['opts'][CURLOPT_PROXY] = $ipPort;
+        if($accountPassword){
+            $this->config['opts'][CURLOPT_PROXYUSERPWD] = $accountPassword;
+        }
+        return $this;
+    }
+
+    /**
      * 设置curl请求超时时间
      * @param int $timeout
      * @return $this
@@ -292,72 +324,48 @@ class Curl
         curl_close($ch);
         return $output;
     }
+
     /**
-     * 分批响应下载
+     * 下载文件
      * @param string $url
-     * @param string $method
-     * @param string|array $data
-     * @param $contentType
-     * @param bool $report
-     * @param bool $again
+     * @param string $saveToFile
+     * @param mixed|null $callback
      * @return void
+     * @throws \Exception
      */
-    public function chunkedDownload123(string $url, mixed $callback, string $method = 'GET', string|array $data = [], bool $report = false, bool $again = true){
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method); //设置请求方式
+    public function download(string $url, string $saveToFile, mixed $callback = null)
+    {
+        // 初始化 cURL 句柄
+        $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST,false);
+        // 设置 cURL 选项
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, false); // 不直接返回文件内容，而是输出到文件
+        curl_setopt($ch, CURLOPT_BINARYTRANSFER, true); // 在启用 CURLOPT_RETURNTRANSFER 时，返回原生的二进制数据
+        curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($curl, $data) use ($saveToFile, $callback) {
+            // 使用文件句柄将 cURL 获取的数据写入到文件中
+            $file = fopen($saveToFile, 'ab');
 
-        if($data){
-            curl_setopt($ch, CURLOPT_POST, 1);
-            if(is_array($data)){
-                $data = json_encode($data, JSON_UNESCAPED_UNICODE);
+            if ($file) {
+                fwrite($file, $data);
+                fclose($file);
+                $strlen = strlen($data);
+                if($callback) $callback($strlen);
+                return $strlen; // 返回写入的字节数
             }
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-        }
-
-        curl_setopt($ch, CURLOPT_REFERER, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1); // 跟踪爬取重定向页面302 redirect
-        curl_setopt($ch, CURLOPT_MAXREDIRS, $this->config['maxredirs']);//最多重定向3次
-        curl_setopt($ch, CURLOPT_USERAGENT, $this->config['useragent']);
-        curl_setopt($ch, CURLOPT_IPRESOLVE, $this->config['ipresolve']);//在对应域名没有IPv6的情况下，会等待IPv6 DNS解析失败 TIMEOUT 之后才按以前的正常流程去找IPv4，
-        curl_setopt($ch, CURLOPT_TIMEOUT_MS, $this->config['timeout']);
-        curl_setopt($ch, CURLOPT_COOKIE, $this->config['cookie']);
-        curl_setopt($ch, CURLOPT_REFERER, $this->config['referer']);
-
-        if($this->config['encodeng']) curl_setopt($ch, CURLOPT_ENCODING ,$this->config['encodeng']);
-
-        foreach ($this->config['opts'] as $k => $v){
-            curl_setopt($ch, $k, $v);
-        }
-        if($this->config['header']){
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $this->config['header']);//设置请求头
-        }
-
-        $httpInfo = [];
-        curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $chunkedData) use (&$url, &$callback, $method, &$httpInfo, $data, $report, $again){
-            if($httpInfo == false){
-                $httpInfo = curl_getinfo($ch);
-                if($httpInfo['http_code'] != 200){
-                    if($again){
-                        $httpInfo = [];
-                        return $this->chunkedDownload($url, $callback,  $method, $data, $report, false); // 再次尝试
-                    }
-                    App::error()->setError($url.'请求'.$httpInfo['http_code'].'错误 '.$chunkedData);
-                }
-            }
-            $callback($ch, $chunkedData);
-            return strlen($chunkedData);
+            return false; // 如果打开文件失败，返回 false
         });
 
-
+        // 开始下载
         curl_exec($ch);
+
+        // 检查是否有错误发生
+        if (curl_errno($ch)) {
+            App::error()->setError(curl_error($ch));
+        }
+
+        // 关闭 cURL 句柄
         curl_close($ch);
-        $this->config['cookie'] = '';
-        $this->config['header'] = [];
-        $this->config['upload'] = [];
     }
 
     /**

@@ -418,6 +418,80 @@ class Byte
     }
 
     /**
+     * 上报关键信息
+     * @param string $oaid
+     * @param array $otherId
+     * @param array $moreParam
+     * @return void
+     */
+    public function gameaddiction(string $oaid, array $otherId = [], array $moreParam = [])
+    {
+        $where = [$this->config['id_field'][0] => $oaid];
+        $where = array_merge($where, $otherId);
+        $backLog = App::database()->model($this->config['table'])->whereRaw($this->whereRawOr($where))->where(['status' => 1])->order($this->config['pk'] . ' desc')->field($this->config['pk'] . ',' . $this->config['event_field'] . ',' . $this->config['callback_field'])->find();
+        if ($backLog == false) {
+            $backLog = App::database()->model($this->config['table'])->whereRaw($this->whereRawOr($where))->order($this->config['pk'] . ' desc')->field($this->config['pk'] . ',' . $this->config['event_field'] . ',' . $this->config['callback_field'])->find();
+        }
+        if ($backLog) {
+            $param = [
+                'event_type' => $this->config['events']['gameaddiction'] ?? 'game_addiction',
+                'context' => [
+                    'ad' => [
+                        'callback' => $backLog[$this->config['callback_field']],
+                        'match_type' => $this->matchType($backLog[$this->config['event_field']]),
+                    ]
+                ],
+                'timestamp' => time() * 1000
+            ];
+            if ($moreParam) {
+                foreach ($moreParam as $k => $v) {
+                    $param[$k] = $v;
+                }
+            }
+            $resp = (new Curl())->debug()->setHeader("Content-Type", "application/json")->request($this->config['gateway'], "POST", $param)['body'];
+            App::database()->model($this->config['table'])->where([$this->config['pk'] => $backLog[$this->config['pk']]])->update([$this->config['status_field'] => 1, $this->config['result_field'] => $resp, $this->config['uptime_field'] => time()]);
+            return $resp;
+        }
+    }
+
+    /**
+     * 上报表单事件
+     * @param string $oaid
+     * @param array $otherId
+     * @param array $moreParam
+     * @return void
+     */
+    public function form(string $oaid, array $otherId = [], array $moreParam = [])
+    {
+        $where = [$this->config['id_field'][0] => $oaid];
+        $where = array_merge($where, $otherId);
+        $backLog = App::database()->model($this->config['table'])->whereRaw($this->whereRawOr($where))->where(['status' => 1])->order($this->config['pk'] . ' desc')->field($this->config['pk'] . ',' . $this->config['event_field'] . ',' . $this->config['callback_field'])->find();
+        if ($backLog == false) {
+            $backLog = App::database()->model($this->config['table'])->whereRaw($this->whereRawOr($where))->order($this->config['pk'] . ' desc')->field($this->config['pk'] . ',' . $this->config['event_field'] . ',' . $this->config['callback_field'])->find();
+        }
+        if ($backLog) {
+            $param = [
+                'event_type' => $this->config['events']['form'] ?? 'form',
+                'context' => [
+                    'ad' => [
+                        'callback' => $backLog[$this->config['callback_field']],
+                        'match_type' => $this->matchType($backLog[$this->config['event_field']]),
+                    ]
+                ],
+                'timestamp' => time() * 1000
+            ];
+            if ($moreParam) {
+                foreach ($moreParam as $k => $v) {
+                    $param[$k] = $v;
+                }
+            }
+            $resp = (new Curl())->debug()->setHeader("Content-Type", "application/json")->request($this->config['gateway'], "POST", $param)['body'];
+            App::database()->model($this->config['table'])->where([$this->config['pk'] => $backLog[$this->config['pk']]])->update([$this->config['status_field'] => 1, $this->config['result_field'] => $resp, $this->config['uptime_field'] => time()]);
+            return $resp;
+        }
+    }
+
+    /**
      * 次留
      * @param string $oaid
      * @param array $otherId
