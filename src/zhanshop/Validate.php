@@ -177,6 +177,19 @@ class Validate
     }
 
     /**
+     * 字符串验证
+     * @param string $key
+     * @param mixed $val
+     * @return void
+     */
+    public function string(string $key ,mixed $val)
+    {
+        if($val != null && !is_string($val)){
+            $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的字符串';
+        }
+    }
+
+    /**
      * 数组验证
      * @param string $key
      * @param mixed $val

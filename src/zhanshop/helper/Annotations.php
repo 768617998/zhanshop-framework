@@ -41,8 +41,10 @@ class Annotations
     }
 
     public function apiDescription(){
-        $matched = preg_match('/@apiDescription\s+(\S*)/i', $this->docComment, $matches);
-        return str_replace(' ', '', $matches[1] ?? '');
+        $matched = preg_match('/@apiDescription\s+(.*)/i', $this->docComment, $matches);
+        $description = $matches[1] ?? '';
+        if($description == '*/') return '';
+        return str_replace(' ', '', $description);
     }
 
     public function apiMiddleware(){
@@ -67,7 +69,7 @@ class Annotations
             $fields = explode('.', $fields);
             $pid = $fields[count($fields) - 2] ?? null;
             $field = $fields[count($fields) - 1];
-            $data[] = [
+            $row = [
                 'name' => $field,
                 'pname' => $pid,
                 'type' => $matches[1][$k],
@@ -77,6 +79,7 @@ class Annotations
                 //'is_parent' => true,
                 'children' => [],
             ];
+            $data[] = $row;
         }
         return $data;
     }
@@ -94,7 +97,7 @@ class Annotations
 
     public function apiHeader(){
         //@apiHeader string token 用户token
-        $matched = preg_match_all('/@apiHeader\s+([a-zA-Z]+)\s+(\S+)\s+(\S*)/i', $this->docComment, $matches);
+        $matched = preg_match_all('/@apiHeader\s+([a-zA-Z]+)\s+(\S+)\s+(.*)/i', $this->docComment, $matches);
         $data = $this->listParam($matches);
         $param = [];
         // 进行分组
@@ -111,7 +114,7 @@ class Annotations
 
     public function apiParam(){
         // @apiParam object basic 基本信息
-        $matched = preg_match_all('/@apiParam\s+([a-zA-Z]+)\s+(\S+)\s+(\S*)/i', $this->docComment, $matches);
+        $matched = preg_match_all('/@apiParam\s+([a-zA-Z]+)\s+(\S+)\s+(.*)/i', $this->docComment, $matches);
         $data = $this->listParam($matches);
         $param = [];
         // 进行分组
@@ -128,7 +131,7 @@ class Annotations
 
     public function apiSuccess(){
         // @apiSuccess int id=1 商品id
-        $matched = preg_match_all('/@apiSuccess\s+([a-zA-Z]+)\s+(\S+)\s+(\S*)/i', $this->docComment, $matches);
+        $matched = preg_match_all('/@apiSuccess\s+([a-zA-Z]+)\s+(\S+)\s+(.*)/i', $this->docComment, $matches);
         $data = $this->listParam($matches);
         $success = [];
         // 进行分组

@@ -25,7 +25,6 @@ use zhanshop\console\Output;
  * @method static Database database()
  * @method static Aes aes()
  * @method static Rsa rsa()
- * @method static Curl curl()
  * @method static Middleware middleware()
  * @method static Robot robot()
  * @method static Phar phar()
@@ -86,7 +85,6 @@ class App extends Container
     protected static $bind = [
         'error'           => Error::class,
         'env'             => Env::class,
-        'curl'            => Curl::class,
         'config'          => Config::class,
         'cache'           => Cache::class,
         'log'             => Log::class,

@@ -59,11 +59,6 @@ class Query
         $this->options['fetch_sql'] = true;
         return $this;
     }
-
-    /**
-     * @param string $table
-     * @return void
-     */
     public function join(string $table, $alias, string $condition, string $type = 'INNER', array $bind = []){
         $this->options['join'][] = [
             'table' => $table,
@@ -323,6 +318,12 @@ class Query
         }
         $pdoPoll = App::make(DbManager::class)->get($this->connection);
         return $pdoPoll->query($sql, $bind, $pdo);
+    }
+
+    public function multiQuery(array $sqls, mixed $pdo = null)
+    {
+        $pdoPoll = App::make(DbManager::class)->get($this->connection);
+        return $pdoPoll->multiQuery($sqls, $pdo);
     }
 
     public function execute(string $sql, array $bind = [], bool $lastID = false, mixed $pdo = null){

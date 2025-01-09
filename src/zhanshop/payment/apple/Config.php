@@ -11,12 +11,12 @@ declare (strict_types=1);
 namespace zhanshop\payment\apple;
 
 use zhanshop\App;
-use zhanshop\Curl;
+use zhanshop\Httpclient;
 
 class Config
 {
     public $config = [
-        // 支付宝应用ID
+        // 苹果应用ID
         'appid' => '1234567890',
         'gateway' => 'https://buy.itunes.apple.com/verifyReceipt',
         'password' => '123456',
@@ -59,9 +59,9 @@ class Config
      */
     public function verify($receipt)
     {
-        $curl = new Curl();
-        $curl->setHeader("Content-Type", "application/json; charset=utf-8");
-        $resp = $curl->request($this->config['gateway'], "POST", ['receipt-data' => $receipt, 'password' => $this->config['password']]);
+        $httpClient = new Httpclient();
+        $httpClient->setHeader("Content-Type", "application/json; charset=utf-8");
+        $resp = $httpClient->request($this->config['gateway'], "POST", json_encode(['receipt-data' => $receipt, 'password' => $this->config['password']]));
         if($resp['body']){
             $body = json_decode($resp['body'], true);
             if($body) return $body;

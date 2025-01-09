@@ -12,43 +12,29 @@ namespace zhanshop;
 
 use app\exception\HttpException;
 use app\exception\WebSocketException;
-use zhanshop\cache\CacheManager;
-use zhanshop\console\TaskManager;
-use zhanshop\database\DbManager;
+use zhanshop\console\command\Server;
 use zhanshop\route\Dispatch;
 use zhanshop\service\ApiDoc;
 use zhanshop\service\Git;
 
 class WebHandle
 {
-    /**
-     * 当前服务事件类
-     * @var ServEvent
-     */
-    protected mixed $servEvent;
 
-    /**
-     * 构造函数
-     * @param array $servNames
-     */
-    public function __construct(mixed $servEvent = null)
+    protected $webServers = [];
+    public function setServers(array $servers)
     {
-        $this->servEvent = $servEvent;
-
-        $this->loadRoute(); // 装载路由配置
-        App::make(TaskManager::class, [$this->servEvent->server]);  // 载入task管理类
-        App::make(CacheManager::class); // 缓存管理初始化
-        App::make(DbManager::class); // 数据库管理初始化
-        App::log($this->servEvent->setting['daemonize'] ?? false)->execute(); // 日志通道运行起来
+        $this->webServers = $servers;
+        return $this;
     }
 
     /**
-     * 载入路由配置
+     * 载入路由
      * @return void
      */
-    protected function loadRoute(){
+    public function router()
+    {
         $dispatch = App::make(Dispatch::class);
-        foreach($this->servEvent->servNames ?? [] as $v){
+        foreach($this->webServers as $v){
             $routePath = App::routePath().DIRECTORY_SEPARATOR.$v;
             if(!file_exists($routePath)) continue;
             $files = scandir($routePath);
@@ -63,16 +49,15 @@ class WebHandle
             }
             $dispatch->setApp($v);
             $dispatch->setVersion('v1');
-            App::route()->rule('GET', '/api.doc', [ApiDoc::class, 'call'])->extra([$v]);
-            App::route()->rule('POST', '/api.doc', [ApiDoc::class, 'call'])->extra([$v]);
-
-            App::route()->rule('POST', '/git.push', [Git::class, 'call'])->extra([$v]);
+            App::route()->rule('GET', '/api.doc', [ApiDoc::class, 'call']);
+            App::route()->rule('POST', '/api.doc', [ApiDoc::class, 'call']);
+            App::route()->rule('POST', '/git.push', [Git::class, 'call']);
         }
     }
 
-    public function middleware(Request &$request, \Closure $next){
+    public function middleware($middleware, \Closure $next){
         return array_reduce(
-            $request->getRoure()['middleware'],
+            $middleware,
             $this->carry(),
             $next
         );
@@ -88,7 +73,7 @@ class WebHandle
             /**
              * @$passable request请求对象
              */
-            return function (Request &$request) use ($stack, $pipe) {
+            return function ($request) use ($stack, $pipe) {
                 try {
                     return $pipe($request, $stack);
                 } catch (Throwable $e) {
@@ -99,105 +84,134 @@ class WebHandle
     }
 
     /**
-     * 路由调度
-     * @param int $protocol
-     * @param Request $request
+     * http调度
+     * @param string $appName
+     * @param \Swoole\Http\Request $request
+     * @param \Swoole\Http\Response $response
      * @return void
      */
-    public function dispatch(string $appName, Request &$request, Response &$servResponse){
+    public function httpDispatch($appName, $request, $response){
+
+        $httpRequest = new Request(Server::HTTP, $request);
+        $httpResponse = new Response(Server::HTTP, $response);
+        $httpRequest->setData('__resp__', $httpResponse);
+
         try {
             $dispatch = App::make(Dispatch::class);
 
-            $dispatch->check($appName, $request);
-
-            $handler = $request->getRoure()['handler'];
-            $controller = $handler[0];
-            $action = $handler[1];
-
-
-            $dispatch = $this->middleware($request, function (&$request) use (&$controller, &$action, &$servResponse){
-                $data = App::make($controller)->$action($request, $servResponse);
-                $servResponse->setData($data);
-                return $servResponse;
-            });
-
-            $dispatch($request);
-        }catch (\Throwable $e){
-            $servResponse->setHttpCode((int)$e->getCode());
-            //$servResponse->se
-            $data = App::make(HttpException::class)->handle($request, $servResponse, $e);
-            $servResponse->setData($data); // 先执行后置中间件
+            $route = $dispatch->getRoute($appName, $request->server['request_uri'] ?? '', $request->server['request_method'] ?? "GET");
+            $httpRequest->setHandler($route['handler']);
+            foreach ($route['extra'] as $name => $val){
+                $httpRequest->setData($name, $val);
+            }
+            $httpRequest->setData('_app', $appName);
+            $this->middleware($route['middleware'], function ($req){
+                list($controller, $action) = $req->getHandler();
+                $resp = $req->getData('__resp__');
+                $data = App::make($controller)->$action($req, $resp);
+                $resp->setData($data);
+                return $resp;
+            })($httpRequest);
+        }catch (\Throwable $error){
+            $data = App::make(HttpException::class)->handle($httpRequest, $error);
+            $httpResponse->setcode(intval($error->getCode()));
+            $httpResponse->setmsg($error->getMessage());
+            $httpResponse->setdata($data);
         }
+
+        try {
+            $httpResponse->send();
+        }catch (\Throwable $error){}
+
+        unset($httpResponse, $httpRequest);
     }
 
     /**
-     * 路由调度WebSocket
-     * @param int $protocol
-     * @param Request $request
+     * websocket调度
+     * @param $appName
+     * @param $request
+     * @param $response
      * @return void
      */
-    public function dispatchWebSocket(string $appName, Request &$request, Response &$servResponse){
+    public function websocketDispatch($appName, $request)
+    {
+        $wsRequest = new Request(Server::WEBSOCKET, $request);
+        $wsResponse = new Response(Server::WEBSOCKET, null);
+        $wsResponse->setFromfd($request->fd);
+        $wsRequest->setData('__resp__', $wsResponse);
+
+
         try {
             $dispatch = App::make(Dispatch::class);
 
-            $dispatch->check($appName, $request);
-
-            $handler = $request->getRoure()['handler'];
-            $controller = $handler[0];
-            $action = $handler[1];
-
-
-            $dispatch = $this->middleware($request, function (&$request) use (&$controller, &$action, &$servResponse){
-                $data = App::make($controller)->$action($request, $servResponse);
-                $servResponse->setData($data);
-                return $servResponse;
-            });
-
-            $dispatch($request);
-        }catch (\Throwable $e){
-            $servResponse->setHttpCode((int)$e->getCode());
-            $data = App::make(WebSocketException::class)->handle($request, $servResponse, $e);
-            $servResponse->setData($data); // 先执行后置中间件
+            $route = $dispatch->getRoute($appName, $request->server['request_uri'] ?? '', $request->server['request_method'] ?? "POST");
+            $wsRequest->setHandler($route['handler']);
+            foreach ($route['extra'] as $name => $val){
+                $wsRequest->setData($name, $val);
+            }
+            $this->middleware($route['middleware'], function ($req){
+                list($controller, $action) = $req->getHandler();
+                $resp = $req->getData('__resp__');
+                $data = App::make($controller)->$action($req, $resp);
+                $resp->setData($data);
+                return $resp;
+            })($wsRequest);
+        }catch (\Throwable $error){
+            $data = App::make(WebsocketException::class)->handle($wsRequest, $error);
+            $wsResponse->setcode(intval($error->getCode()));
+            $wsResponse->setmsg($error->getMessage());
+            $wsResponse->setdata($data);
         }
+        try {
+            $wsResponse->send();
+        }catch (\Throwable $error){}
+
+        unset($wsResponse, $wsRequest);
     }
 
     /**
-     * 网桥控制器调度
+     * 桥接调度
      * @param string $appName
      * @param Request $request
      * @param \Swoole\Coroutine\Channel $servResponse
-     * @return array
+     * @return string|true
      */
-    public function dispatchBridg(string $appName, Request &$request, \Swoole\Coroutine\Channel &$servResponse){
+    public function dispatchBridg(string $appName, Request $request, \Swoole\Coroutine\Channel &$servResponse){
         try {
             $dispatch = App::make(Dispatch::class);
-
-            $dispatch->check($appName, $request);
-
-            $handler = $request->getRoure()['handler'];
-            $controller = $handler[0];
-            $action = $handler[1];
+            $route = $dispatch->getRoute($appName, $request->server('request_uri'), $request->server('request_method'));
+            foreach ($route['extra'] as $name => $val){
+                $request->setData($name, $val);
+            }
+            list($controller, $action) = $route['handler'];
             App::make($controller)->$action($request, $servResponse);
             return true;
         }catch (\Throwable $e){
-            return $e->getMessage().PHP_EOL.$e->getFile().':'.$e->getLine();
+            return $e->getMessage().PHP_EOL.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString();
         }
     }
 
-    public function dispatchtTcp(string $appName, Request &$request, Response &$servResponse){
+    /**
+     * tcp调度
+     * @param string $appName
+     * @param Request $request
+     * @param Response $servResponse
+     * @return string|true
+     */
+    public function dispatchtTcp(string $appName, Request $request, Response $servResponse){
+
         try {
             $dispatch = App::make(Dispatch::class);
-
-            $dispatch->check($appName, $request);
-
-            $handler = $request->getRoure()['handler'];
-            $controller = $handler[0];
-            $action = $handler[1];
-
+            $route = $dispatch->getRoute($appName, $request->server('request_uri'), $request->server('request_method'));
+            foreach ($route['extra'] as $name => $val){
+                $request->setData($name, $val);
+            }
+            list($controller, $action) = $route['handler'];
             App::make($controller)->$action($request, $servResponse);
             return true;
         }catch (\Throwable $e){
-            return $e->getMessage() .PHP_EOL. $e->getFile().':'.$e->getLine();
+            return $e->getMessage().PHP_EOL.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString();
         }
     }
+
 }

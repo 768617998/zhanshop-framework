@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\alipay;
 
 use zhanshop\App;
-use zhanshop\Curl;
+use zhanshop\Httpclient;
 
 class Query
 {
@@ -50,8 +50,8 @@ class Query
         if($other) $data = array_merge($data, $other);
 
         $params = $config->signParams($data, 'query');
-        $curl = new Curl();
-        $resp = $curl->request($config->get('gateway'), 'POST', http_build_query($params));
+        $httpClient = new Httpclient();
+        $resp = $httpClient->request($config->get('gateway'), 'POST', http_build_query($params));
         $json = json_decode($resp['body'], true);
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
@@ -79,8 +79,8 @@ class Query
         if($other) $data = array_merge($data, $other);
 
         $params = $config->signParams($data, 'query');
-        $curl = new Curl();
-        $resp = $curl->request($config->get('gateway'), 'POST', http_build_query($params));
+        $httpClient = new Httpclient();
+        $resp = $httpClient->request($config->get('gateway'), 'POST', http_build_query($params));
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
@@ -109,8 +109,8 @@ class Query
         if($other) $data = array_merge($data, $other);
 
         $params = $config->signParams($data, 'query');
-        $curl = new Curl();
-        $resp = $curl->request($config->get('gateway'), 'POST', http_build_query($params));
+        $httpClient = new Httpclient();
+        $resp = $httpClient->request($config->get('gateway'), 'POST', http_build_query($params));
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
@@ -128,6 +128,8 @@ class Query
      */
     public function signNo($number, array $other = [])
     {
+        $config = App::make(Config::class);
+
         $data = [
             'method' => 'alipay.user.agreement.query',
             'personal_product_code' => 'CYCLE_PAY_AUTH_P',
@@ -137,8 +139,8 @@ class Query
 
         if($other) $data = array_merge($data, $other);
         $params = $this->config->signParams($data, 'query');
-        $curl = new Curl();
-        $resp = $curl->request($config->get('gateway'), 'POST', http_build_query($params));
+        $httpClient = new Httpclient();
+        $resp = $httpClient->request($config->get('gateway'), 'POST', http_build_query($params));
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);

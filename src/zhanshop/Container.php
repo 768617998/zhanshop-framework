@@ -10,9 +10,7 @@ declare (strict_types = 1);
 
 namespace zhanshop;
 
-
-use zhanshop\cache\CacheManager;
-use zhanshop\database\DbManager;
+use zhanshop\console\command\Server;
 
 /**
  * 容器管理类 支持PSR-11
@@ -55,6 +53,42 @@ class Container
 
         $obj = new $className(...$vars);
         return self::$instances[$className] = $obj;
+    }
+
+    /**
+     * 通过类名获取类的实例
+     * @template Type
+     * @param class-string<Type> $className
+     * @return Type
+     */
+    public static function callWorker(string $className, ...$value)
+    {
+        $client = new WorkerClient();
+        return $client->make($className, ...$value);
+    }
+
+    /**
+     * 通过类名获取类的实例
+     * @template Type
+     * @param class-string<Type> $className
+     * @return Type
+     */
+    public static function rpc(string $className, ...$value)
+    {
+        $client = new RpcClient();
+        return $client->make($className, ...$value);
+    }
+
+    /**
+     * 通过类名获取类的实例
+     * @template Type
+     * @param class-string<Type> $className
+     * @return Type
+     */
+    public static function task(string $className, ...$value)
+    {
+        $taskCall = new TaskCall();
+        return $taskCall->make($className, ...$value);
     }
 
     /**
@@ -107,6 +141,9 @@ class Container
      * @return void
      */
     public static function cleanAll(){
+        foreach (self::$instances as $obj){
+            unset($obj);
+        }
         self::$instances = [];
     }
 }

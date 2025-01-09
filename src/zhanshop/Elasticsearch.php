@@ -2,23 +2,18 @@
 
 namespace zhanshop;
 
-use Elastic\Elasticsearch\Client;
-use Elastic\Elasticsearch\ClientBuilder;
-
 class Elasticsearch
 {
-    protected $baseUrl = "";
-    protected $userPwd = "";
+    protected $url;
+    protected $user;
+    protected $pass;
     protected $options = [];
     public function __construct()
     {
-        // http://elastic:zhangqiquan123@127.0.0.1:9200/_cat/indices
-        $connection = App::config()->get('elasticsearch.connection');
-        $auth = '';
-        if($connection['user'] && $connection['pass']){
-            $this->userPwd = $connection['user'].':'.$connection['pass'];
-        }
-        $this->baseUrl = $connection['scheme'].'://'.$connection['host'][0].':'.$connection['port'];
+        $config = App::config()->get('elasticsearch');
+        $this->url = $config['scheme'].'://'.$config['host'].':'.$config['port'];
+        $this->user = $config['user'];
+        $this->pass = $config['pass'];
     }
 
     /**
@@ -26,27 +21,58 @@ class Elasticsearch
      * @return string[]
      */
     public function showTables(){
-        $curl = new Curl();
-        if($this->userPwd) $curl->setopt(CURLOPT_USERPWD, $this->userPwd);
-        $curl->setHeader('Content-Type', 'application/json');
-        $ret = $curl->request($this->baseUrl.'/_cat/indices?v');
-        $arr = explode("\n", $ret['body']);
-        unset($arr[0]);
-        return array_values($arr);
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $result = $httpClient->enableIpv6()->request($this->url.'/_cat/indices?v');
+        $tables = explode("\n", $result['body']);
+        $titles = $tables[0];
+        $titles = array_values(array_filter(explode(" ", $titles)));
+        unset($tables[0]);
+        $data = [];
+        foreach ($tables as $k => $v){
+            $vals = explode(" ", $v);
+            if(count($vals) > 2){
+                $vals = array_values(array_filter($vals, function ($str){
+                    if ($str === "") return false;
+                    return true;
+                }));
+                foreach ($titles as $kk => $vv){
+                    $data[$k][$vv] = $vals[$kk] ?? '-';
+                }
+            }
+        }
+        return $data;
     }
+
 
     /**
      * 显示状态
      * @return string[]
      */
     public function showStatus(){
-        $curl = new Curl();
-        if($this->userPwd) $curl->setopt(CURLOPT_USERPWD, $this->userPwd);
-        $curl->setHeader('Content-Type', 'application/json');
-        $ret = $curl->request($this->baseUrl.'/_cat/health?v');
-        $arr = explode("\n", $ret['body']);
-        unset($arr[0]);
-        return array_values($arr);
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $result = $httpClient->enableIpv6()->request($this->url.'/_cat/health?v');
+        $status = explode("\n", $result['body']);
+        $titles = $status[0];
+        $titles = array_values(array_filter(explode(" ", $titles)));
+        unset($status[0]);
+        $statusData = [];
+        foreach ($status as $k => $v){
+            $vals = explode(" ", $v);
+            if(count($vals) > 2){
+                $vals = array_values(array_filter($vals, function ($str){
+                    if ($str === "") return false;
+                    return true;
+                }));
+                foreach ($titles as $kk => $vv){
+                    $statusData[$k][$vv] = $vals[$kk] ?? '-';
+                }
+            }
+        }
+        return $statusData;
     }
 
     /**
@@ -54,15 +80,14 @@ class Elasticsearch
      * @return void
      */
     public function truncate(){
-        $curl = new Curl();
-        if($this->userPwd) $curl->setopt(CURLOPT_USERPWD, $this->userPwd);
-        $curl->setHeader('Content-Type', 'application/json');
-        try {
-            $curl->request($this->baseUrl.'/'.$this->options['index'], 'DELETE');
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $result = $httpClient->enableIpv6()->request($this->url.'/'.$this->options['index'], "DELETE");
+        if($result['code'] >= 400){
             return true;
-        }catch (\Throwable $e){
-            return false;
         }
+        return false;
     }
 
     public function indexName(string $name){
@@ -71,9 +96,54 @@ class Elasticsearch
     }
 
     /**
+     * 修改索引【仅支持添加索引】
+     * @param string $field
+     * @param $type
+     * @param array $value
+     * @return true
+     * @throws \Exception
+     */
+    public function alter(string $field, string $type, array $value = [])
+    {
+//            $data = [
+//                'properties' => [
+//                    "新字段" =>    [
+//                        'type' => "text",
+//                        'fields' => [
+//                            'keyword' =>  [
+//                                'type' => 'keyword',
+//                                'ignore_above' => 256, // 索引长度过长将不会被索引
+//                            ],
+//                        ],
+//                    ],
+//                ],
+//            ];
+        $data = [
+            'properties' => [
+                $field => [
+                    'type' => $type,
+                ]
+            ],
+        ];
+
+        foreach ($value as $k => $v){
+            $data['properties'][$field][$k] = $v;
+        }
+
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $result = $httpClient->enableIpv6()->request($this->url.'/'.$this->options['index'].'/_mapping', "PUT", json_encode($data));
+        if($result['code'] >= 400){
+            App::error()->setError($result['body']);
+        }
+        return true;
+    }
+
+    /**
      * 创建索引
      * @param array $data
-     * @return void
+     * @return array
      */
     public function createIndex(array $data){
         /**
@@ -153,35 +223,64 @@ class Elasticsearch
         }
         }
         }
-
          */
 
+//        $data = [
+//            'mappings' => [
+//                'properties' => [
+//                    'id' =>   [
+//                        "type" => "long"
+//                    ],
+//                    'username' =>   [
+//                        'type' => 'text',
+//                        'fields' =>
+//                            [
+//                                'keyword' =>  [
+//                                    'type' => 'keyword',
+//                                    'ignore_above' => 256, // 索引长度过长将不会被索引
+//                                ],
+//                            ],
+//                    ],
+//                    'introduction' =>   [
+//                        'type' => 'text',
+//                        'fields' =>
+//                            [
+//                                'keyword' =>  [
+//                                    'type' => 'keyword',
+//                                    'ignore_above' => 256, // 索引长度过长将不会被索引
+//                                ],
+//                            ],
+//                    ],
+//                ],
+//            ],
+//        ];
 
-        $curl = new Curl();
-        if($this->userPwd) $curl->setopt(CURLOPT_USERPWD, $this->userPwd);
-        $curl->setHeader('Content-Type', 'application/json');
-        $ret = $curl->request($this->baseUrl.'/'.$this->options['index'], 'PUT', $data);
-        return json_decode($ret['body'], true);
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $result = $httpClient->enableIpv6()->request($this->url.'/'.$this->options['index'], "PUT", json_encode($data));
+        $this->options = [];
+        return json_decode($result['body'], true);
     }
 
     /**
      * 插入单条
-     * @param $data
-     * @return void
-     * @throws \Elastic\Elasticsearch\Exception\ClientResponseException
-     * @throws \Elastic\Elasticsearch\Exception\MissingParameterException
-     * @throws \Elastic\Elasticsearch\Exception\ServerResponseException
+     * @param array $data
+     * @param string $id
+     * @return mixed
+     * @throws \Exception
      */
     public function insert(array $data, string $id = ""){
         if($id == false) $id = Helper::orderId();
-        $this->options['id'] = $id;
-        $this->options['body'] = $data;
 
-        $curl = new Curl();
-        if($this->userPwd) $curl->setopt(CURLOPT_USERPWD, $this->userPwd);
-        $curl->setHeader('Content-Type', 'application/json');
-        $ret = $curl->request($this->baseUrl.'/'.$this->options['index'].'/_doc/'.$id.'?pretty', 'POST', $data);
-        return json_decode($ret['body'], true);
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $result = $httpClient->enableIpv6()->request($this->url.'/'.$this->options['index'].'/_doc/'.$id.'?pretty', "POST", json_encode($data));
+        if($result['code'] >= 400){
+            App::error()->setError($result['body']);
+        }
+        return json_decode($result['body'], true);
     }
 
     /**
@@ -196,7 +295,6 @@ class Elasticsearch
             $save = [
                 'index' => [
                     '_index' => $this->options['index'],
-                    '_type' => '_doc',
                     '_id' => $orderId
                 ],
             ];
@@ -205,11 +303,16 @@ class Elasticsearch
         }
         $saveAll .= "\r\n";
         $this->options = [];
-        $curl = new Curl();
-        if($this->userPwd) $curl->setopt(CURLOPT_USERPWD, $this->userPwd);
-        $curl->setHeader('Content-Type', 'application/json');
-        $ret = $curl->request($this->baseUrl.'/_bulk', 'POST', $saveAll, 'POST');
-        return json_decode($ret['body'], true);
+
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $result = $httpClient->enableIpv6()->request($this->url.'/_bulk', "POST", $saveAll);
+        if($result['code'] >= 400){
+            App::error()->setError($result['body']);
+        }
+        return json_decode($result['body'], true);
+
     }
 
     /**
@@ -351,7 +454,7 @@ class Elasticsearch
      * @return array
      */
     public function finder(int $page = 1, int $limit = 20){
-        $url = $this->baseUrl.'/'.$this->options['index'].'/_search';
+        $url = $this->url.'/'.$this->options['index'].'/_search';
         $offset = ($page - 1) * $limit;
         $page--;
         // 字符串字段不支持排序
@@ -372,9 +475,7 @@ class Elasticsearch
         if($params['query'] == false) unset($params['query']);
 
         $this->options = [];
-        $curl = new Curl();
-        if($this->userPwd) $curl->setopt(CURLOPT_USERPWD, $this->userPwd);
-        $curl->setHeader('Content-Type', 'application/json');
+
         $data = [
             'total' => 0,
             'list' => [],
@@ -382,8 +483,15 @@ class Elasticsearch
             'errmsg' => '',
             'original' => [],
         ];
+
         try {
-            $ret = $curl->request($url, 'POST', $params);
+            $httpClient = new Httpclient();
+            $httpClient->userPwd($this->user.':'.$this->pass);
+            $httpClient->setHeader('Content-Type', 'application/json');
+            $result = $httpClient->enableIpv6()->request($url, 'POST', json_encode($params));
+            if($result['code'] >= 400){
+                App::error()->setError($result['body']);
+            }
             $resp = json_decode($ret['body'], true);
             $data['total'] = $resp['hits']['total'];
             $data['max_score'] = $resp['hits']['max_score'];
@@ -407,19 +515,27 @@ class Elasticsearch
         // 字符串字段不支持排序
         $params = ['query' => $sql];
         $this->options = [];
-        $curl = new Curl();
-        if($this->userPwd) $curl->setopt(CURLOPT_USERPWD, $this->userPwd);
-        $curl->setHeader('Content-Type', 'application/json');
-        $ret = $curl->request($url, 'POST', $params);
-        $ret = json_decode($ret['body'], true);
-        $data = [];
-        foreach($ret['rows'] as $vals){
-            $row = [];
-            foreach($vals as $k => $v){
-                $row[$ret['columns'][$k]['name']] = $v;
-            }
-            $data[] = $row;
+
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $ret = $httpClient->enableIpv6()->request($this->url.'/'.$this->options['index'], "POST", json_encode($params));
+        if($ret['code'] >= 400){
+            App::error()->setError($ret['body']);
         }
+        $ret = json_decode($ret['body'], true);
+
+        $data = [];
+        try {
+            foreach($ret['rows'] as $vals){
+                $row = [];
+                foreach($vals as $k => $v){
+                    $row[$ret['columns'][$k]['name']] = $v;
+                }
+                $data[] = $row;
+            }
+        }catch (\Throwable $throwable){}
+
         return $data;
     }
 
@@ -428,7 +544,7 @@ class Elasticsearch
      * @return array
      */
     public function delete(){
-        $url = $this->baseUrl.'/'.$this->options['index'].'/_delete_by_query';
+        $url = $this->url.'/'.$this->options['index'].'/_delete_by_query';
         $params = ['query' => []];
 
         $this->getQueryAndParam($params['query']);
@@ -438,10 +554,14 @@ class Elasticsearch
         if($params['query'] == false) unset($params['query']);
 
         $this->options = [];
-        $curl = new Curl();
-        if($this->userPwd) $curl->setopt(CURLOPT_USERPWD, $this->userPwd);
-        $curl->setHeader('Content-Type', 'application/json');
-        $ret = $curl->request($url, 'POST', $params);
+
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $ret = $httpClient->enableIpv6()->request($url, 'POST', json_encode($params));
+        if($ret['code'] >= 400){
+            App::error()->setError($ret['body']);
+        }
         return json_decode($ret['body'], true);
     }
 
@@ -450,7 +570,7 @@ class Elasticsearch
      * @return array
      */
     public function update(array $data){
-        $url = $this->baseUrl.'/'.$this->options['index'].'/_update_by_query?conflicts=proceed&wait_for_completion=false';
+        $url = $this->url.'/'.$this->options['index'].'/_update_by_query?conflicts=proceed&wait_for_completion=false';
         $params = ['query' => []];
 
         $this->getQueryAndParam($params['query']);
@@ -475,10 +595,14 @@ class Elasticsearch
         ];
 
         $this->options = [];
-        $curl = new Curl();
-        if($this->userPwd) $curl->setopt(CURLOPT_USERPWD, $this->userPwd);
-        $curl->setHeader('Content-Type', 'application/json');
-        $ret = $curl->request($url, 'POST', $params);
+
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $ret = $httpClient->enableIpv6()->request($url, 'POST', json_encode($params));
+        if($ret['code'] >= 400){
+            App::error()->setError($ret['body']);
+        }
         return json_decode($ret['body'], true);
     }
 

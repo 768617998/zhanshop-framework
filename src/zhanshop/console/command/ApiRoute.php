@@ -81,7 +81,7 @@ class ApiRoute extends Command
                         $uri = explode('/', $route['api']['uri'])[0];
                         $class = $route['handler'][0];
                         $action = $route['handler'][1];
-                        $versionRouteCode .= "      App::route()->rule(\"".$route['api']['method']."\", \"".$uri."\", [\\".$class."::class, \"".$action."\"])";
+                        $versionRouteCode .= "      App::route()->rule(\"".$route['api']['method']."\", \"".$uri."\", [".$class."::class, \"".$action."\"])";
                         if($route['extra']){
                             $versionRouteCode .= '->extra('.json_encode($route['extra']).')';
                         }
@@ -109,7 +109,7 @@ class ApiRoute extends Command
         $apiDocs = [];
         $reflection= new \ReflectionClass($class);
         foreach($reflection->getMethods() as $method){
-            $apiDoc = $this->generateMethod($method);
+            $apiDoc = $this->generateMethod($class, $method);
             if($apiDoc){
                 $apiDocs[] = $apiDoc;
             }
@@ -136,11 +136,12 @@ class ApiRoute extends Command
      * @param $method
      * @return array|false
      */
-    protected function generateMethod($method){
+    protected function generateMethod(string $class, mixed $method){
         if($method->getDocComment()){
             $apiDoc = (new Annotations($method->getDocComment()))->all();
             if($apiDoc['api']['method'] && $apiDoc['api']['uri'] && $apiDoc['api']['title']){
-                $apiDoc['handler'] = [$method->class, $method->name];
+                $apiDoc['handler'] = [$class, $method->name];
+                //var_dump([$method->class, $method->name]);
                 $extra = explode('/', str_replace(['{', '}'], '', $apiDoc['api']['uri']));
                 unset($extra[0]);
                 $apiDoc['extra'] = array_values($extra);

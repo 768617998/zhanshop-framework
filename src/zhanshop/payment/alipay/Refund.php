@@ -11,10 +11,26 @@ declare (strict_types=1);
 namespace zhanshop\payment\alipay;
 
 use zhanshop\App;
-use zhanshop\Curl;
+use zhanshop\Httpclient;
 
 class Refund
 {
+    protected $config = [];
+    public function __construct()
+    {
+        $this->config = new Config();
+    }
+
+    /**
+     * 设置配置
+     * @param string $key
+     * @param mixed $val
+     * @return void
+     */
+    public function setConfig(string $key, mixed $val)
+    {
+        $this->config->setConfig($key, $val);
+    }
     /**
      * 触发退款
      * @param string $orderId
@@ -24,8 +40,6 @@ class Refund
      */
     public function pay(string $orderId, float $amount, string $reason = "", $other = [])
     {
-        $config = App::make(Config::class);
-
         $data = [
             'method' => 'alipay.trade.refund',
             "out_trade_no" => $orderId,
@@ -35,10 +49,10 @@ class Refund
 
         if($other) $data = array_merge($data, $other);
 
-        $params = $config->signParams($data, 'refundalipay');
+        $params = $this->config->signParams($data, 'refundalipay');
 
-        $curl = new Curl();
-        $resp = $curl->request($config->get('gateway'), 'POST', http_build_query($params));
+        $httpClient = new Httpclient();
+        $resp = $httpClient->request($this->config->get('gateway'), 'POST', http_build_query($params));
         $json = json_decode($resp['body'], true);
         if($json == false){
             $body = iconv("GBK", "UTF-8", $resp['body']);

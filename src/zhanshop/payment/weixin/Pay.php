@@ -72,7 +72,7 @@ class Pay
                 'POST', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $this->config->get('privatekey'));
         $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
-        $payResp = $curl->request($url, 'POST', $data, false, false);
+        $payResp = $curl->debug()->request($url, 'POST', $data, false, false);
         if($payResp['code'] != 200){
             App::error()->setError($payResp['body']);
         }
@@ -84,12 +84,14 @@ class Pay
             "partnerid" => $this->config->get('mchid'),      // 微信支付商户号
             "prepayid" => $payResp['prepay_id'], // 统一下单订单号
         ];
+        $md5Sign = $this->config->md5Sign($resData);
         // 对App支付进行签名
         $time = strval(time());
         $sign = $this->config->sign(join("\n", [$resData['appid'], $time, $resData['noncestr'], $resData['prepayid'], '']), $this->config->get('privatekey'));
         $resData['package'] = 'Sign=WXPay';
         $resData['timestamp'] = $time;
         $resData['sign'] = $sign;
+        $resData['sign_md5'] = $md5Sign;
         return $resData;
     }
 

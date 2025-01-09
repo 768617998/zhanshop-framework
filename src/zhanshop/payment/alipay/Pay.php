@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\alipay;
 
 use zhanshop\App;
-use zhanshop\Curl;
+use zhanshop\Httpclient;
 
 class Pay
 {
@@ -127,9 +127,8 @@ class Pay
         if($other) $data = array_merge($data, $other);
 
         $params = $this->config->signParams($data, 'nativealipay');
-
-        $curl = new Curl();
-        $resp = $curl->request($this->config->get('gateway'), 'POST', http_build_query($params));
+        $httpClient = new Httpclient();
+        $resp = $httpClient->request($this->config->get('gateway'), 'POST', http_build_query($params));
         $json = json_decode($resp['body'], true);
         if($json == false){
             $body = iconv("GBK", "UTF-8", $resp['body']);
@@ -164,8 +163,8 @@ class Pay
 
         $params = $this->config->signParams($data, 'appalipay');
         $params = http_build_query($params);
-        $curl = new Curl();
-        $resp = $curl->request($this->config->get('gateway'), 'POST', $params);
+        $httpClient = new Httpclient();
+        $resp = $httpClient->request($this->config->get('gateway'), 'POST', $params);
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);

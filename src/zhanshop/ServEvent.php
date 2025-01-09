@@ -11,9 +11,9 @@ declare (strict_types=1);
 namespace zhanshop;
 
 use Swoole\Timer;
+use Swoole\Coroutine;
 use zhanshop\cache\CacheManager;
 use zhanshop\console\command\Server;
-use zhanshop\console\command\server\Accepted;
 use zhanshop\database\DbManager;
 
 class ServEvent
@@ -23,6 +23,8 @@ class ServEvent
      * @var \Swoole\Server
      */
     public mixed $server;
+
+    public string $servName = 'index';
 
     /**
      * 当前所有的服务名称
@@ -34,7 +36,7 @@ class ServEvent
      * 路由组
      * @var string
      */
-
+    public const ON_INITIAL = 'initial';
     public const ON_START = 'start';
     public const ON_WORKER_START = 'workerStart';
     public const ON_WORKER_STOP = 'workerStop';
@@ -92,9 +94,9 @@ class ServEvent
      */
     public function onStart($server) :void{
         App::config()->loadIni();
-        $msg = "启动工作进程数".($server->setting['worker_num']).', 任务工作进程'.($server->setting['task_worker_num']).', swoole'.swoole_version().', 环境'.($_SERVER['APP_ENV'] ?? 'dev');
+        $msg = "启动工作进程数".($server->setting['worker_num']).', 任务工作进程'.($server->setting['task_worker_num']).', 环境'.swoole_version().' '.($_SERVER['APP_ENV'] ?? 'dev').'['.getmypid().']';
         Log::errorLog(SWOOLE_LOG_NOTICE, $msg);
-        App::make(Robot::class)->send($msg);
+        //App::make(Robot::class)->send($msg);
     }
 
     /**
@@ -105,17 +107,23 @@ class ServEvent
      */
     public function onWorkerStart($server, $workerId) :void{
         App::config()->loadIni();
-        if($workerId < $server->setting['worker_num']) {
-            $msg = "工作进程启动, 进程".getmypid();
-        }else{
-            $msg = "任务进程启动, 进程".getmypid();
+
+        if($server->setting){
+            if($workerId < $server->setting['worker_num']) {
+                $msg = "工作进程启动, 进程".getmypid();
+            }else{
+                $msg = "任务进程启动, 进程".getmypid();
+            }
+            Log::errorLog(SWOOLE_LOG_DEBUG, $msg);
         }
-        Log::errorLog(SWOOLE_LOG_DEBUG, $msg);
-        App::make(Robot::class)->send($msg);
-
+        
+        Timer::clearAll();// 清理掉所有定时器
         App::cleanAll(); // 清空销毁APP容器的所有对象
-
-        App::webhandle($this); // webServer处理
+        gc_collect_cycles();
+        App::log();
+        App::make(CacheManager::class); // 缓存管理初始化
+        App::make(DbManager::class); // 数据库管理初始化
+        App::webhandle()->setServers($this->servNames)->router(); // webServer处理
     }
 
     /**
@@ -135,6 +143,7 @@ class ServEvent
      */
     public function onWorkerExit($server, $workerId) :void{
         Timer::clearAll();
+        App::log()->write();
     }
 
     /**
@@ -158,7 +167,11 @@ class ServEvent
         foreach ($server->connections as $fd) {
             $server->close($fd, true);
         }
-        App::make(Robot::class)->send($msg);
+
+        Coroutine::create(function () use ($msg){
+            App::make(WebHook::class)->bridge($msg);
+        });
+
     }
 
     /**
@@ -169,7 +182,14 @@ class ServEvent
      * @return void
      */
     public function onPipeMessage($server, $src_worker_id, $message) :void{
-
+        try {
+            $handler = $message[0][0];
+            $method = $message[0][1];
+            $param = $message[1];
+            App::make($handler)->$method(...$param);
+        }catch (\Throwable $e){
+            Log::errorLog(SWOOLE_LOG_ERROR,'worker出错 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+        }
     }
 
     /**
@@ -179,7 +199,7 @@ class ServEvent
      * @param string $group
      * @return void
      */
-    public function onRequest($request, $response, $protocol = Server::HTTP, $appName = 'index') :void{
+    public function onRequest($request, $response) :void{
         $response->header('Server', 'zhanshop');
         $response->header('Access-Control-Allow-Origin', '*');
         $response->header('Access-Control-Allow-Headers', '*');
@@ -192,12 +212,7 @@ class ServEvent
             $response->end(json_encode($this->server->stats()));
             return;
         }
-
-        $servRequest = new Request($protocol, $request);
-        $servResponse = new Response($response, $request->fd);
-
-        App::webhandle()->dispatch($appName, $servRequest, $servResponse);
-        $servResponse->sendHttp();
+        App::webhandle()->httpDispatch($this->servName, $request, $response);
     }
 
     /**
@@ -226,7 +241,7 @@ class ServEvent
             $request->post = $data['body'] ?? [];
             $protocol = Server::TCP;
             $servRequest = new Request($protocol, $request);
-            $servResponse = new Response($server, $fd);
+            $servResponse = new Response($protocol, $server);
             $result = App::webhandle()->dispatchtTcp('admin', $servRequest, $servResponse);
             if($result !== true){
                 $server->send($fd, '{"uri":"error","header":[],"body":"'.$request->server['request_uri'].PHP_EOL.addslashes($result).'"}'."\r\n");
@@ -244,16 +259,6 @@ class ServEvent
     public function onConnect($server, $fd, $reactorId) :void{
     }
 
-//    /**
-//     * 自定义握手处理
-//     * @param Swoole\Http\Request $request
-//     * @param Swoole\Http\Response $response
-//     * @return void
-//     */
-//    public static function onHandShake($request, $response){
-//
-//    }
-
     /**
      * WebSocket 客户端与服务器建立连接并完成握手后
      * @param \Swoole\Server $server
@@ -261,6 +266,7 @@ class ServEvent
      * @return void
      */
     public function onOpen($server, $request) :void{
+        App::webhandle()->httpDispatch($this->servName, $request, null);
     }
 
     /**
@@ -293,11 +299,29 @@ class ServEvent
             if($task->data == false || !is_array($task->data)){
                 Log::errorLog(SWOOLE_LOG_ERROR,'投递的task必须是一个数组');
             }else{
-                $class = $task->data['class'];
-                $obj = new $class($task);
-                $obj->onStart();
-                $obj->execute();
-                $obj->onEnd();
+                $obj = App::make($task->data[0][0]);
+
+                $enableLog = $obj->enableLog ?? false;
+                $taskId = 0;
+                if($enableLog){
+                    $taskId = App::database()->model("system_tasks")->insertGetId([
+                        'task' => $task->data[0][0].'::'.$task->data[0][1],
+                        'param' => json_encode($task->data[1], JSON_UNESCAPED_UNICODE),
+                        'status' => 0,
+                        'create_time' => time(),
+                        'update_time' => time(),
+                    ]);
+                }
+
+                if(isset($obj->taskId)){
+                    $obj->taskId = $taskId;
+                }
+
+                $method = $task->data[0][1];
+                $result = $obj->$method(...$task->data[1]);
+
+                if($taskId) App::database()->model("system_tasks")->where(['id' => $taskId])->update(['status' => 2, 'result' => $result, 'update_time' => time()]);
+
             }
         }catch (\Throwable $e){
             Log::errorLog(SWOOLE_LOG_ERROR,'task出错 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
@@ -325,7 +349,9 @@ class ServEvent
         if(file_exists($pidFile)) @unlink($pidFile);
         $msg = 'server触发了正常停止';
         Log::errorLog(SWOOLE_LOG_NOTICE, $msg);
-        App::make(Robot::class)->send($msg);
+        Coroutine::create(function ()  use ($msg){
+            App::make(WebHook::class)->bridge($msg);
+        });
     }
 
     /**

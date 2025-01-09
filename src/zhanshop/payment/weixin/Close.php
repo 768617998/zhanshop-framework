@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\weixin;
 
 use zhanshop\App;
-use zhanshop\Curl;
+use zhanshop\Httpclient;
 
 class Close
 {
@@ -32,10 +32,9 @@ class Close
 
         if($other) $data = array_merge($data, $other);
 
-        $curl = new Curl();
-        $curl->seEncodeng(false);
-        $curl->setHeader('Accept', 'application/json');
-        $curl->setHeader('Content-Type', 'application/json');
+        $httpClient = new Httpclient();
+        $httpClient->setHeader('Accept', 'application/json');
+        $httpClient->setHeader('Content-Type', 'application/json');
         $nonce = $config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
@@ -43,8 +42,8 @@ class Close
         $signature = $config->sign(implode("\n", [
                 'POST', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $config->get('privatekey'));
-        $curl->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
-        $payResp = $curl->request($url, 'POST', $data, false, false);
+        $httpClient->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
+        $payResp = $httpClient->request($url, 'POST', json_encode($data), false, false);
         return json_decode($payResp['body'], true);
     }
 }

@@ -15,6 +15,22 @@ use zhanshop\Curl;
 
 class Refund
 {
+    protected $config = [];
+    public function __construct()
+    {
+        $this->config = new Config();
+    }
+
+    /**
+     * 设置配置
+     * @param string $key
+     * @param mixed $val
+     * @return void
+     */
+    public function setConfig(string $key, mixed $val)
+    {
+        $this->config->setConfig($key, $val);
+    }
     /**
      * 触发退款
      * @param string $orderId
@@ -25,7 +41,6 @@ class Refund
     public function pay(string $orderId, float $amount, string $reason = "系统退款", $other = [])
     {
         $url = 'https://api.mch.weixin.qq.com/v3/refund/domestic/refunds';
-        $config = App::make(Config::class);
         $data = [ // JSON请求体
             //'mchid' => $config->get('mchid'),//$config[''],
             //'appid' => $config->get('appid'),
@@ -36,7 +51,7 @@ class Refund
             'amount' => [
                 'refund' => $amount * 100,
                 "total" => $amount * 100,
-                "currency" => $config->get('currency', 'CNY'),
+                "currency" => $this->config->get('currency', 'CNY'),
             ],
         ];
 
@@ -46,14 +61,14 @@ class Refund
         $curl->seEncodeng(false);
         $curl->setHeader('Accept', 'application/json');
         $curl->setHeader('Content-Type', 'application/json');
-        $nonce = $config->getNonce();
+        $nonce = $this->config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
 
-        $signature = $config->sign(implode("\n", [
+        $signature = $this->config->sign(implode("\n", [
                 'POST', $path, $timestamp, $nonce, json_encode($data)
-            ])."\n", $config->get('privatekey'));
-        $curl->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
+            ])."\n", $this->config->get('privatekey'));
+        $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
         $payResp = $curl->request($url, 'POST', $data, false, false);
         if($payResp['code'] != 200){
             App::error()->setError($payResp['body']);

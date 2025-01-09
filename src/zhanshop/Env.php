@@ -61,7 +61,7 @@ class Env
      * @param mixed  $default 默认值
      * @return mixed
      */
-    public function get(string $name = null, $default = null)
+    public function get(string $name = "", mixed $default = null)
     {
         if (is_null($name)) {
             return $this->data;
@@ -77,7 +77,7 @@ class Env
      * @param string|null $path
      * @return false|string
      */
-    public function getFileData(string $name = null)
+    public function getFileData(string $name = "")
     {
         $path = $this->get($name);
         if($path && file_exists($path)){

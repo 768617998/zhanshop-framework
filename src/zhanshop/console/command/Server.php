@@ -13,18 +13,15 @@ namespace zhanshop\console\command;
 use zhanshop\App;
 use zhanshop\console\Command;
 use zhanshop\console\command\software\ScanPorts;
-use zhanshop\console\crontab\WatchLogCronTab;
 use zhanshop\console\Input;
 use zhanshop\console\Output;
-use zhanshop\console\process\TaskScheduler;
 use zhanshop\console\ServerStatus;
-use zhanshop\console\TaskManager;
 use zhanshop\Log;
+use zhanshop\Mutex;
+use zhanshop\ProcessManager;
 use zhanshop\ServEvent;
-use zhanshop\console\crontab\WatchServCronTab;
 use zhanshop\ShareData;
 use zhanshop\Timer;
-use zhanshop\WebHandle;
 
 class Server extends Command
 {
@@ -53,8 +50,9 @@ class Server extends Command
             'daemonize' => true,
             'enable_coroutine' => true, // 这个只是将OnRequest 方法变成非阻塞而已而没有把mysql的操作变成非阻塞
             'hook_flags' => SWOOLE_HOOK_ALL,
-            'log_level' => SWOOLE_LOG_NOTICE, // 仅记录错误日志以上的日志
+            'log_level' => SWOOLE_LOG_INFO, // 仅记录错误日志以上的日志
             'log_rotation' => SWOOLE_LOG_ROTATION_DAILY, // 每日日志
+            'log_date_format' => '%Y-%m-%d %H:%M:%S',
             'task_worker_num' => 1,
             'task_enable_coroutine' => true,
             'max_request' => 0,
@@ -63,7 +61,10 @@ class Server extends Command
             'document_root' => '',
             'http_autoindex' => true,
             'http_index_files' => ['index.html'],
+            // 一个TCP连接的最少需要占用 224 字节
             'max_connection' => 200000,
+            // 底层默认分配2M(C)虚拟内存+8K(PHP)内存
+            'max_coroutine' => 1000, // 一个协程初始化的时候默认约占用8K物理内存
             //'ssl_cert_file' => '/ssl/swagger.crt',
             //'ssl_key_file' => '/ssl/swagger.key',
         ],
@@ -100,7 +101,10 @@ class Server extends Command
         //ServEvent::ON_BEFORE_RELOAD => [ServEvent::class, 'onBeforeReload'],
         //ServEvent::ON_BEFORE_SHUTDOWN => [ServEvent::class, 'onBeforeShutdown'],
     ];
-
+    /**
+     * @var \Swoole\Server
+     */
+    public static $server = null;
     public function configure(){
         $this->setTitle('启动服务器')->setDescription('使用该命令可以创建服务器应用');
     }
@@ -149,6 +153,9 @@ class Server extends Command
         self::$servNames = array_column($servers, 'name');
 
         $callbacks = $this->config['servers'][0]['callbacks'] ?? [];
+        $initial = $callbacks[ServEvent::ON_INITIAL] ?? null;
+        if($initial) $initial();
+        unset($callbacks[ServEvent::ON_INITIAL]);
         foreach($this->callbacks as $k => $v){
             if(isset($callbacks[$k]) == false){
                 $callbacks[$k] = $v;
@@ -164,11 +171,11 @@ class Server extends Command
         $this->config['settings']['reactor_num'] = $this->config['settings']['reactor_num'] ?? swoole_cpu_num();
         // 由于swoole暂不支持多个http静态文件访问(当server个数大于1禁用enable_static_handler)
         // 由于swoole http静态文件访问 HTTP2有bug 当开启open_http2_protocol(禁用enable_static_handler)
+        // 同一组进程同端口同时支持监听IPV4和IPV6目前只支持BASE模式下，SWOOLE_PROCESS模式下暂不支持同一个端口同时监听IPV4和IPV6
         $http2 = $this->config['settings']['open_http2_protocol'] ?? false;
         if($http2){
             //$this->config['settings']['enable_static_handler'] = false;
         }
-
         //$this->config['settings']['stats_file'] = App::runtimePath().DIRECTORY_SEPARATOR.'status'.DIRECTORY_SEPARATOR.$this->loadName.'.json';
     }
 
@@ -198,6 +205,12 @@ class Server extends Command
      * @return false|int
      */
     protected function isRuning(){
+        if($this->config['servers'][0]['mode'] == 3){
+            if(count($this->config['servers']) > 1){
+                App::error()->setError("多线程模式下暂仅支持监听一个服务");
+            }
+            return false;
+        }
         try {
             $pidFile = $this->config['settings']['pid_file'];
             if(file_exists($pidFile)){
@@ -337,7 +350,6 @@ class Server extends Command
      * @return void|null
      */
     public function start(){
-
         // 并且检查端口是否被占用
         if($this->isRuning() && $this->isUsePort()){
             return $this->output->output("程序已在运行...", 'info');
@@ -356,6 +368,11 @@ class Server extends Command
             }else if($server){
                 if($v['serv_type'] > $this->config['servers'][0]['serv_type']) App::error()->setError("第".($k+1).'个server的serv_type值不得高于首个serv_type的值');
                 $subServer = $this->addListenServer($server, $v);
+                if($subServer == false){
+                    $errorMsg = $v['host'].'的'.$v['port'].'端口监听失败';
+                    if($v['port'] < 1000 && ($_SERVER['USER'] ?? "") != 'root') $errorMsg .= ',请使用root权限执行';
+                    App::error()->setError($errorMsg);
+                }
                 $subServer->set($v['settings']);
                 $callbacks = $v['callbacks'] ?? [];
                 if($callbacks) $this->serverEventBind($subServer, $callbacks);
@@ -370,14 +387,16 @@ class Server extends Command
             // 当存在定时任务的时候才会启动定时任务进程
             $process = new \Swoole\Process(function ($process) use ($server) {
                 $process->set(['enable_coroutine' => true, 'hook_flags' => SWOOLE_HOOK_ALL]);
-                App::make(TaskManager::class, [$server]);
                 foreach($this->config['crontab'] as $v){
-                    App::make(Timer::class)->register(new $v($server)); // 根据配置执行定时任务
+                    try {
+                        App::make(Timer::class)->register(new $v($server)); // 根据配置执行定时任务
+                    }catch (\Throwable $err){
+                        Log::errorLog(SWOOLE_LOG_NOTICE, $err->getMessage());
+                    }
                 }
-                //echo PHP_EOL.'['.date('Y-m-d H:i:s').']' .' ###[info]### 定时任务启动, 进程'.getmypid().PHP_EOL.PHP_EOL;
+                Log::errorLog(SWOOLE_LOG_DEBUG, "定时进程启动, 进程".getmypid());
             }, false, 2, true);
             $server->addProcess($process);
-            $customMsg .= "定时进程开启 ";
         }
 
         // 用户自定义进程
@@ -389,14 +408,11 @@ class Server extends Command
                 }, false, 2, true);
                 $server->addProcess($process);
             }
-            $customMsg .= "自定义进程数".count($this->config['process']).' ';
 
         }
-
-        if($customMsg) Log::errorLog(SWOOLE_LOG_NOTICE, $customMsg);
-
+        Mutex::init();
         ShareData::make(); // 构建共享内存实例
-
+        Server::$server = $server;
         $server->start();
     }
 
@@ -496,9 +512,14 @@ class Server extends Command
             App::error()->setError('请使用root用户执行该命令');
         }
 
+        /**
+         * root soft nofile 1024000
+         * root hard nofile 1024000
+         */
+
         $pwd = App::rootPath();
         // 检查文件是否存在
-        $serviceName = basename($pwd).'-zhanshop-'.substr(md5(dirname($pwd)), -4, 4);
+        $serviceName = App::config()->get("app.app_name", 'zhanshop-server');
         $serviceFile = '/etc/systemd/system/'.$serviceName.'.service';
         if(file_exists($serviceFile)){
             \Swoole\Coroutine\run(function() use ($serviceName, $serviceFile){
@@ -531,6 +552,37 @@ WantedBy=multi-user.target
             \Swoole\Coroutine\System::exec('systemctl enable '.$serviceName);
 
         });
+
+        $limits = file_get_contents("/etc/security/limits.conf");
+        //var_dump($limits);die;
+        if(strpos($limits, "root soft nofile 1024000") === false){
+            $limitsStr = '';
+            $arr = explode("\n", $limits);
+            foreach ($arr as $v){
+                $v0 = $v[0] ?? '';
+                $v1 = $v[1] ?? '';
+                var_dump($v0.'=>'.$v1);
+                if($v0 == '*' && $v1 == ' '){
+                    break;
+                }
+                $limitsStr .= $v."\n";
+            }
+            $limitsStr .= "* soft nofile 1024000\n";
+            $limitsStr .= "* hard nofile 1024000\n";
+            $limitsStr .= "root soft nofile 1024000\n";
+            $limitsStr .= "root hard nofile 1024000\n";
+            file_put_contents("/etc/security/limits.conf", $limitsStr);
+
+            $defaultLimit = "\n\n";
+            $defaultLimit = "DefaultLimitNOFILE=1024000\n";
+            $defaultLimit = "DefaultLimitNPROC=1024000\n";
+            error_log($defaultLimit, 3, "/etc/systemd/system.conf");
+
+            \Swoole\Coroutine\run(function(){\Swoole\Coroutine\System::exec('reboot');});
+
+            return;
+        }
+
         $this->start();
     }
 
@@ -544,6 +596,34 @@ WantedBy=multi-user.target
             $this->output->output("\n参数说明：server 后的一个参数{启动|关闭|重载|重启|状态|开机启动} {后台启动(不指定默认)|非后台启动}");
             $this->output->output("关于环境：请修改全局环境变量 APP_ENV=dev或者APP_ENV=production 没有指定将会载入dev环境文件");
             exit();
+        }
+    }
+
+    /**
+     * 像任意Worker 进程或者 Task 进程发送消息
+     * @param int $workerId
+     * @param array $task
+     * @param ...$param
+     * @return void
+     */
+    public static function sendWorkerMessage(int $workerId, array $handler, ...$param)
+    {
+        $selfCall = false;
+        if($workerId != -1){
+            if($workerId == Server::$server->getWorkerId()){
+                $selfCall = true;
+            }else{
+                Server::$server->sendMessage([$handler, $param], $workerId);
+            }
+        }else{
+            $selfCall = true;
+            for($i = 0; $i < self::$server->setting['worker_num']; $i++){
+                if($i != Server::$server->getWorkerId()) Server::$server->sendMessage([$handler, $param], $i);
+            }
+        }
+        if($selfCall){
+            $method = $handler[1];
+            App::make($handler[0])->$method(...$param);
         }
     }
 

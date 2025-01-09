@@ -12,6 +12,7 @@ namespace zhanshop\database;
 use Swoole\Database\PDOPool;
 use zhanshop\App;
 use zhanshop\database\connection\Mysql;
+use zhanshop\Log;
 
 class PDOConnectionPool
 {
@@ -131,6 +132,30 @@ class PDOConnectionPool
                 }else{
                     throw new \Exception($e->getMessage().',sql:'.$sql.','.json_encode($bind, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE), (int)$e->getCode());
                 }
+            }
+        }
+        return $result;
+    }
+
+    public function multiQuery(array $sqls, mixed $pdo = null, bool $isRetry = false)
+    {
+        if($pdo == false) $pdo = $this->getPDO();
+
+        $result = [];
+        $error = null;
+        foreach($sqls as $sql){
+            try {
+                $result = array_merge($result, $this->_query($pdo, $sql));
+            }catch (\Throwable $e){
+                $error = $e;
+            }
+        }
+        $this->recoveryPDO($pdo); // 回收
+        if($isRetry !== null){
+            if($isRetry === false){
+                return $this->multiQuery($sqls, true);
+            }else{
+                throw new \Exception($e->getMessage(), (int)$e->getCode());
             }
         }
         return $result;
@@ -258,9 +283,9 @@ class PDOConnectionPool
             }
             $index = strpos($sql, "] ");
             $sql = substr($sql, $index+2).' 【runtime:'.(microtime(true) - $startTime).'】';
-            App::log()->push($sql, "SQL");
+            App::log()->push($sql, Log::NOTICE, 'SQL');
         }catch (\Throwable $exception){
-            App::log()->push($exception->getMessage(), "ERROR");
+            App::log()->push($exception->getMessage(),  Log::ERROR, 'SQL');
         }
     }
 

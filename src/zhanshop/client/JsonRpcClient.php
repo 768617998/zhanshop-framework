@@ -15,9 +15,9 @@ use zhanshop\App;
 
 class JsonRpcClient
 {
-    protected $serverHost = '127.0.0.1';
+    protected $serverHost = 'zhanshop-cloud';
 
-    protected $serverPort = 6204;
+    protected $serverPort = 7202;
 
     protected $timeout = 3;
 

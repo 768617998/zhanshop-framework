@@ -107,7 +107,7 @@ declare (strict_types=1);\n\n";
             $order_id .= rand(100, 999);
         }else{
             $order_id .= $suffix;
-            if(($s = 3- strlen($suffix))>0)$order_id .= str_repeat ('0', $s);
+            if(($s = 3- strlen(strval($suffix)))>0)$order_id .= str_repeat ('0', $s);
         }
         return $order_id;
 
@@ -245,5 +245,98 @@ declare (strict_types=1);\n\n";
         $pattern = '/[[:punct:]]+/u';
         $replacement = '';
         return preg_replace($pattern, "", $str);
+    }
+
+    /**
+     * GC清理
+     * @return void
+     */
+    public function gcClean()
+    {
+        $num = gc_collect_cycles();
+        App::log()->push(getmypid().'gc清理'.$num);
+    }
+
+    /**
+     * 唯一编号
+     * @param $serial
+     * @return void
+     */
+    public static function uniqueNum(int $serial = 0)
+    {
+        $date = new \DateTime();
+        return intval(substr($date->format('ymdHisuv'), 0, 18).rand(1, 9)) + $serial;
+    }
+
+    /**
+     * 拷贝目录
+     * @param $src
+     * @param $dst
+     * @return void
+     */
+    public static function copyDir($src, $dst)
+    {
+        $dir = opendir($src);
+        mkdir($dst);
+        while(false !== ( $file = readdir($dir)) ) {
+            if (( $file != '.' ) && ( $file != '..' )) {
+                if (is_dir($src . '/' . $file)) {
+                    self::copyDir($src . '/' . $file, $dst . '/' . $file);
+                }
+                else {
+                    copy($src . '/' . $file, $dst . '/' . $file);
+                }
+            }
+        }
+        closedir($dir);
+    }
+
+    /**
+     * 删除一个目录
+     * @param string $dir
+     * @return bool
+     */
+    public static function rmdir(string $dir)
+    {
+        if (!file_exists($dir)) {
+            return false;
+        }
+
+        if (!is_dir($dir)) {
+            return unlink($dir);
+        }
+
+        foreach (scandir($dir) as $item) {
+            if ($item == '.' || $item == '..') {
+                continue;
+            }
+
+            $item = $dir . DIRECTORY_SEPARATOR . $item;
+
+            if (is_dir($item)) {
+                self::rmdir($item);
+            } else {
+                unlink($item);
+            }
+        }
+
+        return rmdir($dir);
+    }
+
+    /**
+     * 获取某一天的开始时间戳和结束时间戳
+     * @param string $datetime
+     * @return array
+     */
+    public static function dayTimes(string $datetime = "")
+    {
+        if($datetime){
+            $time = strtotime($datetime);
+        }else{
+            $time = time();
+        }
+        $startTime = strtotime(date('Y-m-d', $time));
+        $endTime = $startTime + 86399;
+        return [$startTime, $endTime];
     }
 }

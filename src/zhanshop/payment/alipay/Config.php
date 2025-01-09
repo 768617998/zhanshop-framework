@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\alipay;
 
 use zhanshop\App;
-use zhanshop\Curl;
+use zhanshop\Httpclient;
 
 class Config
 {
@@ -214,8 +214,9 @@ class Config
 
         if($other) $data = array_merge($data, $other);
         $params = $this->signParams($data, 'query');
-        $curl = new Curl();
-        $resp = $curl->request($this->get('gateway'), 'POST', http_build_query($params));
+
+        $httpclient = new Httpclient();
+        $resp = $httpclient->request($this->get('gateway'), 'POST', http_build_query($params));
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);

@@ -38,48 +38,42 @@ class Request
      */
     protected array $extData = [];
 
-    /**
-     * 当前请求的路由
-     * @var array
-     */
-    protected array $roure;
+    protected array $handler = [];
 
     // 请求的方法
     protected $method;
-
-    public function setRoure(array &$roure){
-        $this->roure = $roure;
-    }
-
-    /**
-     * 获取当前请求路由
-     * @return array
-     */
-    public function getRoure(){
-        return $this->roure;
-    }
-
-    /**
-     * 获取service对象
-     * @return T
-     */
-    public function service(){
-        return [App::make($this->roure['service'][0]), strtolower($this->method()).$this->roure['service'][1]];
-    }
-
 
     /**
      * 构造器
      * @param int $protocol
      * @param mixed $rawRequest http协议：Request对象， tcp/udp：{"header": {}, "server", "get": {}, "post":{}}
      */
-    public function __construct(int &$protocol, mixed &$rawRequest){
+    public function __construct(int $protocol, mixed $rawRequest){
         $this->protocol = $protocol;
         $this->rawRequest = $rawRequest;
 
         if($this->method(true) == 'POST' && strpos($this->contentType(), 'json') !== false){
             $this->getInputData();
         }
+    }
+
+    /**
+     * 设置Handler
+     * @param array $handler
+     * @return void
+     */
+    public function setHandler(array $handler)
+    {
+        $this->handler = $handler;
+    }
+
+    /**
+     * 获取Handler
+     * @return array
+     */
+    public function getHandler()
+    {
+        return $this->handler;
     }
 
     /**
@@ -193,7 +187,7 @@ class Request
      * @param mixed|null $default
      * @return array|mixed|null
      */
-    public function get(string $name = '', mixed $default = null){
+    public function get(mixed $name = '', mixed $default = null){
         if ('' === $name) {
             return $this->rawRequest->get ?? [];
         }
@@ -207,7 +201,7 @@ class Request
      * @param mixed|null $default
      * @return array|mixed|null
      */
-    public function post(string $name = '', mixed $default = null){
+    public function post(mixed $name = '', mixed $default = null){
         if ('' === $name) {
             return $this->rawRequest->post ?? [];
         }
@@ -221,7 +215,7 @@ class Request
      * @param mixed|null $default
      * @return array|mixed|null
      */
-    public function files(string $name = '', mixed $default = null){
+    public function files(mixed $name = '', mixed $default = null){
         if ('' === $name) {
             return $this->rawRequest->files ?? [];
         }
@@ -235,7 +229,7 @@ class Request
      * @param mixed|null $default
      * @return array|mixed|null
      */
-    public function param(string $name = '', mixed $default = null){
+    public function param(mixed $name = '', mixed $default = null){
         switch ($this->method(true)){
             case "POST":
                 $ret = $this->post($name, $default);
@@ -261,7 +255,7 @@ class Request
      * 获取额外参数
      * @param mixed $name
      * @param mixed $val
-     * @return void
+     * @return string
      */
     public function getData(string $name = '', mixed $default = null){
         if ('' === $name) {

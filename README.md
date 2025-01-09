@@ -4,52 +4,25 @@
 zhanshop-php 是一个基于swoole高性能轻量级框架、全程非阻塞、凭借swoole底层将php阻塞函数重写进行协程非阻塞化和php自身低开销特点爆发强劲的性能，性能较传统基于 PHP-FPM 的框架有质的提升，提供超高性能的同时，也保持着极其灵活的可扩展性， 一键快速生成业务逻辑层代码骨架，只需要编写业务逻辑代码即可，根据注释配置即可生成api文档，对PDO 和 redis连接池进行了封装，同一连接内事务支持，不同连接和不同数据库服务器之前的分布式事务等功能，全程APP容器化管理，数据库操作类和缓存操作类和thinkphp类似，简单易用。
 
 ## 完整项目
-https://github.com/zhangqiquan/zhanshop-php
+https://gitee.com/zhangqiquan_admin/zhanshop-php
 
 ## server组成
 1. 业务层(包含控制器、service、model)
-2. crontab (定时任务进程，可将任务丢给task执行, 自带提供的定时有监听代码变化热更新server)
+2. crontab (定时任务进程，可将任务丢给task执行)
 3. task (task任务)
 
-## Server事件通知
-config/sns.php
-robot
-支持 钉钉、 企业微信、飞书 群机器人， 将服务器的启动 重启 重载 Server发生异常错误 进行及时消息提醒
-
-## 日志收集
-config/log.php  
-type 目前支持3种收集类型
-
-1：File 写入到本地,再结合阿里云/腾讯云日志收集工具将日志收集到阿里云/腾讯云日志服务 （推荐）
-
-2：Es 将日志批量写入到Elasticsearch 依赖 composer require elasticsearch/elasticsearch 需要手动安装
-
-3： 写入到数据库中
 
 ## 关于附件
-目前附件是只传七牛云的 依赖 composer require qiniu/php-sdk  并修改 config/sns.php 相应配置
+目前附件是只传七牛云  修改 config/sns.php 相应配置
 
 ## 环境要求
-php8.2 以上版本，需要redis扩展的支持， pdo mysql 扩展的支持，swoole5 以上的扩展支持
-
-## 关于热更新
-非vendor, runtime, public目录下的php文件只要发生了变更就会触发更新
-注意修改了 .dev.*的配置文件和 修改了 config目录下的 app.php 请手动进行重新启动
-注：热更新建议仅在开发环境和本地环境中使用 热更新会额外增加CPU的负担
-
-示例 php cmd.php server start false
-
-## 提供测试数据
-在项目目录下有一个 zhanshop.sql 文件 想要把后台管理系统跑起来 需要把zhanshop.sql导入到 mysql数据库中，建议mysql使用8.0以上版本,
+php8.4 以上版本，需要redis扩展的支持， pdo mysql 扩展的支持，swoole6 以上的扩展支持
 
 
 ## 性能表现 （供参考和对比）
-1. 本框架http服务器，在我的（本机12核，32G ubuntu22 设备上）使用ab压力测试工具 吞吐量可达28万多/s ， 在开启日志写入功能后吞吐量任然在25万多/s
-2. swoole 提供的空的http 服务器代码demo 在我的（本机12核，32G 设备上）使用ab压力测试工具 吞吐量达到30万多，性能损耗主要在框架代码 、路由、task、crontab上
-3. 和nginx静态访问和自己研发的C++服务器对比 nginx在开启日志访问的情况下吞吐量25万多/s，自己基于C++开发的没有业务逻辑的http服务器吞吐量可达32万/s, 可见swoole php对比c/c++语言的损耗大致10%左右。
-4. 对比PHP-FPM 进程池 仅输出一个 echo 1; 在我的（本机12核，32G ubuntu22 设备上）使用ab压力测试工具吞吐量最多能达到2.8万/s
-5. 对比其他框架 thinkphp 控制器上简单返回 在我的（本机12核，32G ubuntu22 设备上）使用ab压力测试工具吞吐量最多能达到2千多/s， laravel就会更差。
+本框架http服务器，在我的（本机12核，32G ubuntu22 设备上）使用ab压力测试工具 吞吐量可达38万多/s
 
+压测表现碾压如go语言的Gin框架、python语言的Tornado框架、java语言的Spring Boot等一众框架
 
 ## 目录结构
 ~~~
@@ -63,7 +36,6 @@ php8.2 以上版本，需要redis扩展的支持， pdo mysql 扩展的支持，
 │  ├─constant       常量类的定义
 │  ├─exception      协议异常自定义接收处理
 │  ├─helper         助手函数类的目录
-│  ├─library        第三方的composer.phar包(项目架构上规定第三方的包一般进行打包成phar包进行载入这样vendor目录不至于那么混乱)
 │  ├─schema         数据表字段配置(常用于后台智能表单智能列表的生成配置)
 │  ├─process        自定义进程
 │  ├─script         独立运行的php脚本文件
@@ -139,49 +111,38 @@ php cmd.php
 可用命令：
 
 help                                帮助 - 显示命令的帮助
-server                              启动服务器 - 使用该命令可以创建一个服务器
+server                              启动服务器 - 使用该命令可以创建服务器应用
+script                              执行脚本 - 单独启动进程方式启动指定程序
 phar                                phar打包 - 将vendor项目目录打包成phar并存放在项目中
 api:route                           api注解生成路由 - 一键生成基于控制器配置的注解路由
-software:scan:ports                 端口扫描 - 对指定IP进行端口扫描
-software:dns:check                  dns检查 - 对指定域名进行DNS检查
 
 ~~~
 
 
-## 配置开机启动脚本
+## 配置开机启动脚本【运行在非容器环境下】
 
 ~~~
-#举例
-
-vim /etc/systemd/system/zhanshop_server.service
-
-[Unit]
-Description=zhanshop-http - high performance web server
-After=network.target
-[Service]
-Type=forking
-ExecStart=php 项目路径/cmd.php server start
-ExecReload=php 项目路径/cmd.php server reload
-ExecStop=php 项目路径/cmd.php server stop
-Execenable=php 项目路径/cmd.php server start
-[Install]
-WantedBy=multi-user.target
-
-保存后
-
-systemctl enable zhanshop_server.service
+php cmd.php server poweron
 
 ~~~
 
-## 演习地址
+## 容器环境下启动
+
+~~~
+cd docker
+./start.sh
+
+~~~
+
+## 演习地址 【IPV6网络环境】
 ~~~
 后台管理系统：
-http://demo.qiyawang.com:6201/admin/
+http://jia-old.shuangcloud.com:7201/admin/
 账号: admin
 密码: admin123
 
 接口服务：
-http://demo.qiyawang.com:6201/apiDoc
+http://jia-old.shuangcloud.com:6201/apiDoc
 
 ~~~
 

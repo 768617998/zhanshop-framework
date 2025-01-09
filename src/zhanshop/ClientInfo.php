@@ -34,7 +34,6 @@ class ClientInfo
     public function set(int $fd, string $name, mixed $data){
         Log::errorLog(SWOOLE_LOG_DEBUG, '设置一个连接信息['.$fd.']['.$name.']'.print_r($data, true).' '.getmypid());
         $this->client[$fd][$name] = $data;
-        print_r(['fd:'.$fd.','.$name => $data]);
     }
 
     /**

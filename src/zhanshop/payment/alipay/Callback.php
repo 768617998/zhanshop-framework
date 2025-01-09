@@ -40,7 +40,10 @@ class Callback
     public function pay(array &$params, callable $callBack)
     {
         if($this->config->verify($params)){
-            $callBack();
+            $status = $params['trade_status'] ?? 'TRADE_SUCCESS';
+            if($status == 'TRADE_SUCCESS'){
+                $callBack();
+            }
             // 异常错误的退款请在业务代码上实现
             return 'success';
         }

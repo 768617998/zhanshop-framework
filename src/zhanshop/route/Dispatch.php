@@ -32,7 +32,7 @@ class Dispatch
         $rule->middleware = array_reverse(array_merge($rule->middleware, App::config()->get('middleware.'.$this->app, [])));
         $middlewares = [];
         foreach($rule->middleware as $middleware){
-            $middlewares[] = function (Request &$request, \Closure &$next) use ($middleware){
+            $middlewares[] = function ($request, \Closure $next) use ($middleware){
                 return App::make($middleware)->handle($request, $next);
             };
         }
@@ -42,7 +42,7 @@ class Dispatch
             'cache' => $rule->cache,
             'extra' => $rule->extra,
             'handler' => $rule->handler,
-            'middleware' => $rule->middleware
+            'middleware' => $rule->middleware,
         ];
     }
 
@@ -55,30 +55,32 @@ class Dispatch
     }
 
     /**
-     * 路由检查
-     * @return void
+     * 获取路由
+     * @param string $name
+     * @param string $uri
+     * @param string $method
+     * @return mixed
+     * @throws \Exception
      */
-    public function check(string &$name, Request &$request){
+    public function getRoute(string $name, string $uri, string $method = "GET"){
         // 检查路由是否存在
-        $params = explode("/", $request->server('request_uri'));
+        $params = explode("/", $uri);
         $version = $params[1] ? $params[1] : 'v1';
         $uri     = isset($params[2]) ? '/'.$params[2] : '/index.index';
-        $method = $request->server('request_method', 'GET');
         $route = $this->routes[$name][$version][$uri][$method] ?? App::error()->setError('您所访问的资源不存在', Error::NOT_FOUND);
-
+        $extra = [];
         foreach ($route['extra'] as $k => $v){
-            $request->setData($v, $params[$k + 3] ?? null);
+            $extra[$v] = $params[$k + 3] ?? null;
         }
-
-        $request->setRoure($route); // 设置当前路由
-
+        $route['extra'] = $extra;
+        return $route;
     }
 
     /**
      * 执行路由调度
      * @param string $name
-     * @param Request $request
-     * @param Response $servResponse
+     * @param \Swoole\Http\Request $request
+     * @param \Swoole\Http\Response $servResponse
      * @return mixed
      */
     public function run(string &$name, Request &$request, Response &$servResponse){

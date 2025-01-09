@@ -51,7 +51,7 @@ class ShareData
      * @param string|null $field
      * @return mixed
      */
-    public static function get(string $key, string $field = null){
+    public static function get(string $key, string $field = ""){
         if(self::$instance){
             return self::$instance->get($key, $field);
         }

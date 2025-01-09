@@ -10,59 +10,58 @@ declare (strict_types=1);
 
 namespace zhanshop;
 
-use Swoole\Coroutine\Channel;
-use Swoole\Timer;
-use Swoole\Coroutine;
-use zhanshop\App;
-use zhanshop\console\command\Server;
 use zhanshop\console\Output;
 
 class Log
 {
-    protected $channel;
+    const NONE = -1;
+    const DEBUG = 0;
+    const TRACE = 1;
+    const INFO = 2;
+    const NOTICE = 3;
+    const SQL = 4;
+    const WARNING = 5;
+    const ERROR = 6;
 
-    protected $dirver;
+    protected $logLevel = 4;
+    protected $logBuffer = [];
+    protected $buffSize = 500;
 
-    protected $type;
+    protected $lockTime = 0.01;
 
-    protected static $daemonize = false;
-
-    public function __construct($daemonize = false){
-        $type = App::config()->get('log.type');
-        $this->type = $type;
-        if(strpos($type, '\\') === false) $type = '\\zhanshop\\log\\driver\\'.ucfirst($type);
-
-        $capacity = App::config()->get('log.capacity', 2000);
-        $this->channel = new Channel($capacity);
-        $this->dirver = new $type;
-        self::$daemonize = $daemonize;
-    }
-
-    public function push(string $msg, $level = 'INFO'){
-        $msg = '['.date('Y-m-d H:i:s').']###['.$level.']###'.$msg;
-        $this->channel->push($msg);
-        if($this->channel->isFull()){
-            $this->dirver->write($this);
-        }
-    }
-
-    public function pop(){
-        $time = 0.001;
-        return $this->channel->pop($time);
-    }
-
-    public function execute(){
-        // 加到2秒检查一次通道内是否有数据
-        Timer::tick(2000, function () {
-            try {
-                if (!$this->channel->isEmpty()){
-                    $this->dirver->write($this);
-                }
-            }catch (\Throwable $e){
-                Error::exceptionHandler($e);
-            }
-
+    public function __construct(){
+        $this->buffSize = App::config()->get("log.buffsize", 10000);
+        $this->logLevel = App::config()->get("log.level", 4);
+        if(PHP_OS == 'Darwin') $this->lockTime = 5;
+        \Swoole\Timer::tick(3000, function(){
+            if($this->logBuffer) $this->write();
         });
+    }
+
+    /**
+     * 日志进程
+     * @param $process
+     * @return void
+     */
+    public static function setProcess($process)
+    {
+        self::$process = $process;
+    }
+
+    /**
+     * 写入日志
+     * @param string $msg
+     * @param $level
+     * @return void
+     */
+    public function push($msg, $level = 2, $tag = ''){
+        //$this->channel->push('['.date('Y-m-d H:i:s').']###[level'.$level.']###'.$msg, 0.01);
+        //App::make(TaskManager::class)->pushLog($msg);
+        if($level < $this->logLevel) return;
+        $this->logBuffer[] = '['.date('Y-m-d H:i:s').']###['.$level.'-'.$tag.']###'.$msg;
+        if(count($this->logBuffer) >= $this->buffSize){
+            $this->write();
+        }
     }
 
     /**
@@ -72,21 +71,17 @@ class Log
      * @return void
      */
     public static function errorLog(int $level, string $msg) :void{
-        if(self::$daemonize){
-            swoole_error_log($level, $msg);
-        }else{
-            // 直接输出日志
-            $msg = '['.date('Y-m-d H:i:s *v').']	'.getmypid().' LEVEL '.$level.'	'.$msg;
-            $stype = 'success';
-            if ($level >= 5){
-                $stype = 'error';
-            }else if($level >= 4){
-                $stype = 'info';
-            }else if($level >= 2){
-                $stype = 'debug';
-            }
-            App::make(Output::class)->output($msg, $stype);
+        // 直接输出日志
+        $msg = '['.date('Y-m-d H:i:s *v').']	'.getmypid().' LEVEL '.$level.'	'.$msg;
+        $stype = 'success';
+        if ($level >= 5){
+            $stype = 'error';
+        }else if($level >= 4){
+            $stype = 'info';
+        }else if($level >= 2){
+            $stype = 'debug';
         }
+        App::make(Output::class)->output($msg, $stype);
     }
 
     /**
@@ -113,5 +108,26 @@ class Log
         ];
         $body = json_encode($body, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE);
         echo $body."\r\n";
+    }
+
+    /**
+     * 设置日志锁超时时间
+     * @param float $timeout
+     * @return void
+     */
+    public function setLockTime(float $timeout)
+    {
+        $this->lockTime = $timeout;
+    }
+
+    public function write()
+    {
+        $logBuffer = implode(PHP_EOL, $this->logBuffer);
+        $this->logBuffer = [];
+        $lock = Mutex::lock($this->lockTime);
+        if($lock){
+            error_log($logBuffer.PHP_EOL, 3, App::runtimePath().'/log/'.date('Ymd').'.log');
+            Mutex::unlock();
+        }
     }
 }

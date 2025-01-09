@@ -35,7 +35,6 @@ abstract class Command
      */
     protected $isCoroutine = false;
 
-    protected $useLog = false;
     /**
      * 配置信息
      * @return mixed
@@ -82,13 +81,6 @@ abstract class Command
         return $this;
     }
 
-    /**
-     * 使用到日志
-     * @return void
-     */
-    protected function useLog(){
-        $this->useLog = true;
-    }
 
     /**
      * 是否有使用到数据库
@@ -98,7 +90,6 @@ abstract class Command
     protected function useDatabase(){
         $this->isCoroutine = true;
         App::make(DbManager::class);
-        $this->useLog();
         return $this;
     }
 
@@ -110,7 +101,6 @@ abstract class Command
     protected function useCache(){
         $this->isCoroutine = true;
         App::make(CacheManager::class);
-        $this->useLog();
         return $this;
     }
 
@@ -142,8 +132,6 @@ abstract class Command
      * @return void
      */
     public function initialize(){
-        if($this->useLog){
-            App::log(false)->execute();
-        }
+
     }
 }

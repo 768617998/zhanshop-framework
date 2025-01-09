@@ -19,185 +19,219 @@ use zhanshop\console\command\Server;
 class Response
 {
     /**
-     * 原始请求对象
+     * 协议
+     * @var int
      */
-    protected mixed $response = null;
+    protected $protocol = Server::HTTP;
 
-    protected $fd;
-    // http响应码
+    /**
+     * 原始响应对象
+     * @var \Swoole\Http\Request
+     */
+    protected mixed $rawResponse = null;
+
     protected $httpCode = 200;
-    // http响应消息
+    protected $header = [];
+    protected $code = 0;
     protected $msg = "OK";
-
     protected $data = [];
+    protected $fromfd = 0;
+    protected $targetfd = 0;
 
     /**
      * 构造器
      * @param int $protocol
-     * @param \Swoole\Http\Response $rawResponse
+     * @param \Swoole\Http\Response|\Swoole\WebSocket\Server $rawResponse
      */
-    public function __construct(mixed &$response, int $fd = 0)
+    public function __construct(int $protocol, mixed $rawResponse)
     {
-        $this->fd = $fd;
-        $this->response = $response;
+        $this->protocol = $protocol;
+        $this->rawResponse = $rawResponse;
     }
 
     /**
-     * 设置响应code
+     * 设置来自用户fd
+     * @param int $fd
+     * @return void
+     */
+    public function setFromfd(int $fd)
+    {
+        $this->fromfd = $fd;
+    }
+
+    /**
+     * 设置目标用户fd
+     * @param int $fd
+     * @return void
+     */
+    public function setTargetfd(int $fd)
+    {
+        $this->targetfd = $fd;
+    }
+
+    /**
+     * 获取原始响应
+     * @return mixed|\Swoole\Http\Request|\Swoole\Http\Response|null
+     */
+    public function rawResponse()
+    {
+        return $this->rawResponse;
+    }
+
+    /**
+     * 设置code
      * @param int $code
      * @return void
      */
-    public function setHttpCode(int $code){
-        if($code >= 10000){
-            $this->httpCode = App::config()->get("app.business_code", 417);
-        }else{
-            $this->httpCode = ($code < 200 || $code > 505) ? 500 : $code;
+    public function setcode(int $code)
+    {
+        $this->code = $code;
+        if($code < 200){
+            $this->httpCode = 500;
+        }elseif ($code > 499 && $code < 10000){
+            $this->httpCode = 500;
         }
     }
-    /**
-     * 获取响应code
-     * @param int $code
-     * @return void
-     */
-    public function getHttpCode(){
-        return $this->httpCode;
-    }
 
     /**
-     * 设置msg
+     * 设置消息
      * @param string $msg
      * @return void
      */
-    public function setMsg(string $msg){
+    public function setmsg(string $msg)
+    {
         $this->msg = $msg;
     }
 
     /**
-     * 获取msg
-     * @return mixed|string
-     */
-    public function getMsg(){
-        return $this->msg;
-    }
-
-    public function setFd(int $fd){
-        $this->fd = $fd;
-    }
-
-    public function getFd(){
-        return $this->fd;
-    }
-
-    /**
-     * 设置响应data
+     * 设置响应数据
      * @param mixed $data
      * @return void
      */
-    public function setData(mixed $data){
+    public function setdata(mixed $data)
+    {
         $this->data = $data;
     }
 
     /**
-     * 获取响应data
-     * @return int|mixed
+     * 获取响应数据
+     * @return array|mixed
      */
-    public function getData(){
+    public function getdata()
+    {
         return $this->data;
     }
 
     /**
-     * 发送http响应
+     * 设置响应头
+     * @param string $key
+     * @param string $value
      * @return void
      */
-    public function sendHttp(){
+    public function setHeader(string $key, string $value)
+    {
+        $this->header[$key] = $value;
+    }
+
+    /**
+     * 发送消息响应
+     * @param mixed $data
+     * @return bool
+     */
+    public function send(){
         if($this->data !== false){
-            $respData = $this->data;
-            if(is_array($respData)){
-                $respData['trace_id'] = microtime(true).rand(10000, 99999).'.'. App::config()->get('app.serial_code', 0).'.'.getmypid();
-                $this->response->header('Content-Type', 'application/json; charset=utf-8');
-                $respData = json_encode($respData);
+            switch ($this->protocol){
+                case Server::HTTP:
+                    return $this->sendHttp();
+                case Server::WEBSOCKET:
+                    return $this->sendWebsocket();
+                case Server::TCP:
+                    return $this->sendTcp();
             }
-            $this->response->status($this->httpCode);
-            $this->response->header('Server', 'zhanshop');
-            $this->response->end($respData);
+        }
+        return false;
+    }
+
+    /**
+     * 发送http响应
+     * @return bool
+     */
+    private function sendHttp()
+    {
+        $this->rawResponse->status($this->httpCode);
+        $this->rawResponse->header('Server', 'zhanshop');
+        if(is_array($this->data)){
+            $this->data['trace_id'] = microtime(true).rand(10000, 99999).'.'. App::config()->get('app.serial_code', 0).'.'.getmypid();
+            $this->rawResponse->header('Content-Type', 'application/json; charset=utf-8');
+            $this->data = json_encode($this->data);
+            return $this->rawResponse->end($this->data);
+        }else if(is_object($this->data)){
+            return $this->rawResponse->end(json_encode($this->data));
+        }else{
+            return $this->rawResponse->end(strval($this->data));
         }
     }
 
-    public function wsPush(int $fd, mixed $data)
+    /**
+     * 响应websocket消息
+     * @return bool
+     */
+    private function sendWebsocket()
+    {
+        if(is_array($this->data) || is_object($this->data)){
+            $this->data['trace_id'] = microtime(true).rand(10000, 99999).'.'. App::config()->get('app.serial_code', 0).'.'.getmypid();
+            $this->data = json_encode($this->data);
+        }
+        return Server::$server->push($this->fromfd, $this->data."\r\n");
+    }
+
+    /**
+     * 向指定fd推送websocket消息
+     * @param $fd
+     * @param $data
+     * @return false
+     */
+    public function toPush($fd, $data)
     {
         if(is_array($data) || is_object($data)){
             $data = json_encode($data, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE);
         }
         try{
-            return $this->response->push($fd, $data);
+            return Server::$server->push($fd, $data);
         }catch (\Throwable $e){
             return false;
         }
     }
 
     /**
-     * 发送tcp数据
-     * @param int $fd
-     * @param mixed $data
-     * @return mixed
+     * 响应tcp消息
+     * @return bool
      */
-    public function send(int $fd, mixed $data, $partition = "\r\n")
+    private function sendTcp()
     {
-        return $this->response->send($fd, $data.$partition);
+        if(is_array($this->data) || is_object($this->data)){
+            $this->data['trace_id'] = microtime(true).rand(10000, 99999).'.'. App::config()->get('app.serial_code', 0).'.'.getmypid();
+            $this->data = json_encode($this->data);
+        }
+        return Server::$server->send($this->fromfd, $this->data."\r\n");
     }
 
     /**
-     * 发送udp数据
-     * @param $address
-     * @param $port
+     * 向指定fd推送tcp消息
+     * @param $fd
      * @param $data
-     * @return mixed
-     */
-    public function sendto($address, $port, $data)
-    {
-        return $this->response->sendto($address, $port, $data);
-    }
-    /**
-     * 发送websocket响应
-     * @return void
-     */
-    public function sendWebSocket(){
-        try{
-            if($this->data){
-                $respData = $this->data;
-                if(is_array($respData)){
-                    $respData['header']['fd'] = $this->fd;
-                    $respData['trace_id'] = microtime(true).rand(10000, 99999).'.'. App::config()->get('app.serial_code', 0).'.'.getmypid();
-                    $respData = json_encode($respData, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE);
-                }
-                return $this->response->push($this->fd, $respData);
-            }
-            return true;
-        }catch (\Throwable $e){
-            return false;
-        }
-    }
-
-    /**
-     * 调用原始方法数据
-     * @param string $name
-     * @param array $args
      * @return false
      */
-    public function __call(string $name, array $args){
-        try {
-            return $this->response->$name(...$args);
+    public function toSend($fd, $data, $partition = "\r\n")
+    {
+        if(is_array($data) || is_object($data)){
+            $data = json_encode($data, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE);
+        }
+        try{
+            return Server::$server->send($fd, $data.$partition);
         }catch (\Throwable $e){
-            return null;
+            return false;
         }
     }
 
-    /**
-     * 原始的响应对象
-     * @return mixed|null
-     */
-    public function rawResponse()
-    {
-        return $this->response;
-    }
 }

@@ -120,45 +120,26 @@ class ScanPorts extends Command
      * @return false|int
      */
     public static function checkTcp(string $ip, int $port){
+        try {
+            $domain = AF_INET;
+            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                $domain = AF_INET6;
+            }
+            $sock = socket_create($domain, SOCK_STREAM, SOL_TCP);
 
-        $sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+            socket_set_option($sock,SOL_SOCKET,SO_RCVTIMEO, array("sec" => 0, "usec"=> 300000) );
+            socket_set_option($sock,SOL_SOCKET,SO_SNDTIMEO, array("sec" => 0, "usec"=> 300000) );
 
-        socket_set_option($sock,SOL_SOCKET,SO_RCVTIMEO, array("sec" => 0, "usec"=> 300000) );
-        socket_set_option($sock,SOL_SOCKET,SO_SNDTIMEO, array("sec" => 0, "usec"=> 300000) );
-
-        socket_set_nonblock($sock);
-        socket_connect($sock,$ip, $port);
-        socket_set_block($sock);
-        $r = array($sock);
-        $w = array($sock);
-        $f = array($sock);
-        $status = socket_select($r, $w, $f, 1);
-        return($status);
-    }
-
-    /**
-     * 检查udp是否开放并有响应
-     * @param string $ip
-     * @param int $port
-     * @return false|int
-     */
-    public static function checkUdp(string $ip, int $port){
-        $sock = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
-        socket_set_option($sock,SOL_SOCKET,SO_RCVTIMEO, array("sec" => 0, "usec"=> 300000) );
-        socket_set_option($sock,SOL_SOCKET,SO_SNDTIMEO, array("sec" => 0, "usec"=> 300000) );
-        $data = "1";
-
-        // 发送失败
-        if(socket_sendto($sock, $data, strlen($data), 0, $ip, $port) === false){
+            socket_set_nonblock($sock);
+            socket_connect($sock,$ip, $port);
+            socket_set_block($sock);
+            $r = array($sock);
+            $w = array($sock);
+            $f = array($sock);
+            $status = socket_select($r, $w, $f, 1);
+            return($status);
+        }catch (\Throwable $e){
             return 0;
         }
-
-        // 接收失败
-        if(socket_recvfrom($sock, $data, 1024, 0, $ip, $port) === false){
-            return 0;
-        }
-
-        socket_close($sock);
-        return 1;
     }
 }

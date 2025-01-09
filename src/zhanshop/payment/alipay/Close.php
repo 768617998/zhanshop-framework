@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\alipay;
 
 use zhanshop\App;
-use zhanshop\Curl;
+use zhanshop\Httpclient;
 
 class Close
 {
@@ -33,8 +33,8 @@ class Close
         if($other) $data = array_merge($data, $other);
 
         $params = $config->signParams($data, 'query');
-        $curl = new Curl();
-        $resp = $curl->request($config->get('gateway'), 'POST', http_build_query($params));
+        $httpClient = new Httpclient();
+        $resp = $httpClient->request($config->get('gateway'), 'POST', http_build_query($params));
         $json = json_decode($resp['body'], true);
         if($json == false){
             $body = iconv("GBK", "UTF-8", $resp['body']);

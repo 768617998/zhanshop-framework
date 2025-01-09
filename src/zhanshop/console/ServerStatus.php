@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\console;
 
 use zhanshop\App;
-use zhanshop\Curl;
+use zhanshop\Httpclient;
 
 class ServerStatus
 {
@@ -86,13 +86,13 @@ class ServerStatus
     }
 
     public static function http($url){
-        $curl = new Curl();
-        $curl->setHeader("Content-Type", "application/json; charset=utf-8");
-        $curl->seEncodeng(false);
-        $response = $curl->request($url.'/v1/api.doc', "POST", [
+        $httpclient = new Httpclient();
+        $httpclient->setHeader("Content-Type", "application/json; charset=utf-8");
+        $httpclient->seEncodeng(false);
+        $response = $httpclient->request($url.'/v1/api.doc', "POST", json_encode([
             '_method' => 'servStatus',
             'appkey' => App::config()->get('app.app_key'),
-        ]);
+        ]));
         $body = json_decode($response['body'], true)['data'];
         return self::translate($body);
     }

@@ -58,8 +58,8 @@ R9hk0fdHgX6raoKdQbqZJcYc
     {
         $config = App::config()->get("pay.weixin");
         if($config) $this->config = array_merge($this->config, $config);
-        if($this->config['privatekey'] == false) App::error()->setError("微信私钥未配置");
-        if($this->config['publickey'] == false) App::error()->setError("微信公钥未配置");
+//        if($this->config['privatekey'] == false) App::error()->setError("微信私钥未配置");
+//        if($this->config['publickey'] == false) App::error()->setError("微信公钥未配置");
     }
 
     /**
@@ -100,6 +100,27 @@ R9hk0fdHgX6raoKdQbqZJcYc
         }
 
         return base64_encode($signature);
+    }
+
+    /**
+     * md5的签名也来一个
+     * @return void
+     */
+    public function md5Sign(array $data)
+    {
+        ksort($data);
+        $strs = '';
+
+        $str = '';
+        foreach ($data as $k => $val){
+            $str .= $k .'=' . $val . '&';
+        }
+        $strs = rtrim($str, '&');
+
+        $stringA = $strs;
+        $stringSignTemp = $stringA."&key=".$this->config['aeskey']; //注：key为商户平台设置的密钥key
+        $stringSignTemp = strtoupper(md5($stringSignTemp));
+        return $stringSignTemp;
     }
 
     public function authorization(string $mchid, string $nonce, string $signature, string $timestamp, string $serial): string

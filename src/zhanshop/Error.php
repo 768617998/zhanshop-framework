@@ -10,7 +10,7 @@ declare (strict_types=1);
 
 namespace zhanshop;
 
-use zhanshop\console\TaskManager;
+use zhanshop\console\command\Server;
 
 class Error extends \Error
 {
@@ -74,7 +74,7 @@ class Error extends \Error
         $error = error_get_last();
         if(isset($error['message'])){
             Log::errorLog(5, "发生致命错误: ".$error['message']);
-            $server = App::make(TaskManager::class, [null])->getServer();
+            $server = Server::$server;
             if($server) $server->reload();
         }
 

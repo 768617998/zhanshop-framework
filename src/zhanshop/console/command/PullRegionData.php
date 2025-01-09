@@ -13,9 +13,9 @@ use zhanshop\App;
 use zhanshop\console\Command;
 use zhanshop\console\Input;
 use zhanshop\console\Output;
-use zhanshop\Curl;
 use zhanshop\Document;
 use zhanshop\Helper;
+use zhanshop\Httpclient;
 
 class PullRegionData extends Command
 {
@@ -37,9 +37,8 @@ class PullRegionData extends Command
         Helper::mkdirs($this->regionDir);
         $url = App::env()->get('REGION_URL', 'http://www.stats.gov.cn/sj/tjbz/tjyqhdmhcxhfdm/2023/index.html');
         $this->url = $url;
-
-        $curl = new Curl();
-        $body = $curl->request($this->url)['body'];
+        $httpclient = new Httpclient();
+        $body = $httpclient->request($this->url)['body'];
 
         $errorProvince = (int)$this->getErrorProvince();
 
@@ -79,8 +78,8 @@ class PullRegionData extends Command
         $regionData = [];
 
         $prefix = dirname($url);
-        $curl = new Curl();
-        $html = $curl->request($url)['body'];
+        $httpclient = new Httpclient();
+        $body = $httpclient->request($url)['body'];
 
         $document = new Document($html);
         $allA = $document->getElementsByClassName('citytr')->getElementsByTagName('a');
@@ -113,8 +112,8 @@ class PullRegionData extends Command
      */
     public function getCounty(&$regionData, $url){
         $prefix = dirname($url);
-        $curl = new Curl();
-        $html = $curl->request($url)['body'];
+        $httpclient = new Httpclient();
+        $body = $httpclient->request($url)['body'];
 
         $document = new Document($html);
         $allA = $document->getElementsByClassName('countytr')->getElementsByTagName('a');
@@ -146,8 +145,8 @@ class PullRegionData extends Command
      */
     public function getTown(&$regionData, $url){
         $prefix = dirname($url);
-        $curl = new Curl();
-        $html = $curl->request($url)['body'];
+        $httpclient = new Httpclient();
+        $body = $httpclient->request($url)['body'];
 
         $document = new Document($html);
         $allA = $document->getElementsByClassName('towntr')->getElementsByTagName('a');
@@ -173,8 +172,8 @@ class PullRegionData extends Command
      */
     public function getVillage(&$regionData, $url){
         $prefix = dirname($url);
-        $curl = new Curl();
-        $html = $curl->request($url)['body'];
+        $httpclient = new Httpclient();
+        $body = $httpclient->request($url)['body'];
 
         $document = new Document($html);
         $allTd = $document->getElementsByClassName('villagetr')->getElementsByTagName('td');

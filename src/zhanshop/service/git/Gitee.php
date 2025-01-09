@@ -58,31 +58,28 @@ class Gitee
         return $branch;
     }
 
-    public function handle($arr){
+    /**
+     * 获取仓库
+     * @param $auth
+     * @param $data
+     * @return array|null
+     */
+    public function getRepository($auth, $data){
+        $this->verify($auth);
         $event = $this->getEvent($arr['hook_name'] ?? '', (bool)($arr['created'] ?? false), (bool)($arr['deleted'] ?? false));
         if($this->pullBranch == $this->gitBranch($arr['ref'] ?? '')){
-            if($event == 'push'){
+            if($event == 'push' && $data['created']){
                 $gitUrl = $arr['repository']['clone_url'] ?? '';
-                if($gitUrl){
-                    App::task()->callback([
-                        GieeTask::class,
-                        'pull'
-                    ], $gitUrl, $this->pullBranch);
-                }
                 Log::errorLog(SWOOLE_LOG_NOTICE, $gitUrl.' ' . $this->pullBranch.'分支推送了代码');
+                return [$gitUrl, $this->pullBranch];
+            }else if($event == 'tag_push' && $data['tag']){
+                $gitUrl = $arr['repository']['clone_url'] ?? '';
+                $tagName = $data["ref"] ?? "";
+                $tagName = str_replace("/", "", strrchr($tagName, "/"));
+                Log::errorLog(SWOOLE_LOG_NOTICE, $gitUrl.' ' . $this->pullBranch.'新增tag'.$tagName);
+                if($tagName) return [$gitUrl, $tagName];
             }
         }
-    }
-
-    /**
-     * 更新代码
-     * @param Request $request
-     * @param Response $response
-     * @return void
-     */
-    public function push(Request &$request, Response &$response){
-        $auth = $request->get("auth");
-        $this->verify($auth);
-        $this->handle($request->post());
+        return null;
     }
 }

@@ -6,6 +6,7 @@ use Swoole\ExitException;
 use zhanshop\App;
 use zhanshop\console\command\Server;
 use zhanshop\helper\Grpc;
+use zhanshop\route\Dispatch;
 use zhanshop\ServEvent;
 
 /**
@@ -64,17 +65,19 @@ class GrpcServEvent extends ServEvent
         }
         $data = '';
         try {
-            $uris = explode('/', $request->server['request_uri']);
-            if(isset($uris[1]) && isset($uris[2])){
-                $service = App::route()->getGrpc('/'.$uris[1], $uris[2]);
+            $dispatch = App::make(Dispatch::class);
+            $route = $dispatch->getGrpc($request->server['request_uri']);
 
-                $method = lcfirst($uris[2]);
-                $req = new $service['param'][0];
-                Grpc::deserialize($req, $request->getContent());
-                $resp = new $service['param'][1];
-                App::make($service['service'])->$method($req, $resp);
-                $data = Grpc::serialize($resp);
-            }
+            list($class, $method) = $route['handler'];
+
+            list($grpcReq, $grpcResp) = $route['param'];
+            $grpcReq = new $grpcReq();
+            $grpcResp = new $grpcResp();
+
+            $method = lcfirst($method);
+            Grpc::deserialize($grpcReq, $request->getContent());
+            App::make($class)->$method($grpcReq, $grpcResp);
+            $data = Grpc::serialize($grpcResp);
 
         }catch (\Throwable $e){
             $response->status(Grpc::getStatus($e->getCode()));
@@ -119,22 +122,3 @@ protoc可用命令:
   @<filename>                 从文件中读取选项和文件名。如果指定了相对文件路径，则文件将在工作目录中搜索。--proto_path选项不会影响将搜索此参数文件。的内容文件将在的位置展开@参数列表中的＜filename＞。笔记外壳膨胀不适用于文件的内容（即，您不能使用引号、通配符、转义符、命令等）。每一行对应于单个自变量，即使它包含空格。
 */
 
-/**
- * Swoole\Http2\Request Object
-(
-[path] => /php.micro.grpc.greeter.Say/Hello
-[method] => POST
-[headers] => Array
-(
-[Content-Type] => application/grpc+proto
-[host] => 127.0.0.1:9509
-[user-agent] => Mix gRPC/PHP 8.2.4/Swoole 5.0.2
-)
-
-[cookies] =>
-[data] =>
-xiaoming
-[pipeline] =>
-)
-
- */

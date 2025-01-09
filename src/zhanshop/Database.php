@@ -55,26 +55,26 @@ class Database{
         }
     }
 
-    public function table(string $table, string $connection = null){
+    public function table(string $table, string $connection = ""){
         if($connection == false) $connection = App::config()->get('database.default');
         $query = $this->getQuery($connection);
         $query->table($table);
         return $query;
     }
 
-    public function query(string $sql, array $bind = [], string $connection = null, mixed $pdo = null){
+    public function query(string $sql, array $bind = [], string $connection = "", mixed $pdo = null){
         if($connection == false) $connection = App::config()->get('database.default');
         $query = $this->getQuery($connection);
         return $query->query($sql, $bind, $pdo);
     }
 
-    public function execute(string $sql, array $bind = [], string $connection = null, bool $lastID = false, mixed $pdo = null){
+    public function execute(string $sql, array $bind = [], string $connection = "", bool $lastID = false, mixed $pdo = null){
         if($connection == false) $connection = App::config()->get('database.default');
         $query = $this->getQuery($connection);
         return $query->execute($sql, $bind, $lastID, $pdo);
     }
 
-    public function transaction($callback, string $connection = null){
+    public function transaction($callback, string $connection = ""){
         if($connection == false) $connection = App::config()->get('database.default');
         $query = $this->getQuery($connection);
         return $query->transaction($callback); // 其他的执行也要走事务的query

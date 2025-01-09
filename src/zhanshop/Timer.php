@@ -99,7 +99,7 @@ class Timer
      * @param mixed $crontab
      * @return void
      */
-    protected function everymonth(mixed &$crontab){
+    protected function everymonth(mixed $crontab){
         $rule = $crontab->getRule();
         $currentTime = time();
         $ruleTime = strtotime(date('Y-m-'.$rule['day'].' '.$rule['hour'].':'.$rule['minute'].':'.$rule['second']));
@@ -107,8 +107,12 @@ class Timer
             $ruleTime = strtotime('+1 month', $ruleTime);
         }
         $ms = ($ruleTime - $currentTime) * 1000;
-        $crontab->timerId = STimer::after($ms, function () use (&$crontab){
-            $crontab->execute();
+        $crontab->timerId = STimer::after($ms, function () use ($crontab){
+            try {
+                $crontab->execute();
+            }catch (\Throwable $e){
+                Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+            }
             $this->everymonth($crontab);
         });
     }
@@ -118,7 +122,7 @@ class Timer
      * @param Crontab $crontab
      * @return void
      */
-    protected function everyweek(mixed &$crontab){
+    protected function everyweek(mixed $crontab){
         $rule = $crontab->getRule();
         $week = $rule['week'] - 1;
 
@@ -131,9 +135,13 @@ class Timer
         }
         $ms = ($ruleTime - $currentTime) * 1000;
         // 设置第一次执行的时间
-        STimer::after($ms, function () use (&$crontab){
+        STimer::after($ms, function () use ($crontab){
             STimer::tick(86400 * 7 * 1000, [$crontab, 'execute']); // 首次执行后添加下次执行的时间也就1周后的现在
-            $crontab->execute(); // 第一次执行
+            try {
+                $crontab->execute();
+            }catch (\Throwable $e){
+                Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+            }
         });
     }
 
@@ -142,7 +150,7 @@ class Timer
      * @param Crontab $crontab
      * @return void
      */
-    protected function everyday(mixed &$crontab){
+    protected function everyday(mixed $crontab){
         $rule = $crontab->getRule();
 
         $currentTime = time();
@@ -155,9 +163,13 @@ class Timer
         }
         $ms = ($ruleTime - $currentTime) * 1000;
         // 设置第一次执行的时间
-        $crontab->timerId = STimer::after($ms, function () use (&$crontab){
+        $crontab->timerId = STimer::after($ms, function () use ($crontab){
             $crontab->timerId = STimer::tick(86400 * 1000, [$crontab, 'execute']); // 首次执行后添加下次执行的时间也就1天后的现在
-            $crontab->execute(); // 第一次执行
+            try {
+                $crontab->execute();
+            }catch (\Throwable $e){
+                Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+            }
         });
     }
 
@@ -166,8 +178,14 @@ class Timer
      * @param Crontab $crontab
      * @return void
      */
-    protected function interval(mixed &$crontab){
-        $timerId = STimer::tick($crontab->getRule()['interval'], [$crontab, 'execute']);
+    protected function interval(mixed $crontab){
+        $timerId = STimer::tick($crontab->getRule()['interval'], function () use ($crontab){
+            try {
+                $crontab->execute();
+            }catch (\Throwable $e){
+                Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+            }
+        });
         $crontab->timerId = $timerId; // 关联定时id
     }
 

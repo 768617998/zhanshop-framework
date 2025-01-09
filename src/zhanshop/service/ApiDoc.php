@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\service;
 
 use zhanshop\App;
-use zhanshop\console\TaskManager;
+use zhanshop\console\command\Server;
 use zhanshop\Error;
 use zhanshop\example\Jquery;
 use zhanshop\example\Vue3;
@@ -75,8 +75,8 @@ class ApiDoc
      * @throws \Exception
      */
     public function call(Request &$request, Response &$response){
-        $extra = $request->getRoure()['extra'];
-        $this->init($extra[0]);
+        $app = $request->getData('_app');
+        $this->init($app);
         $method = strtolower($request->method());
         $data = $this->$method($request, $response);
         return [
@@ -270,8 +270,7 @@ class ApiDoc
     }
 
     public function servStatus(Request &$request, Response &$response){
-        $server = App::make(TaskManager::class, [null])->getServer();
-        return $server->stats();
+        return Server::$server->stats();
     }
 
     protected function getExample(string $uri, string $method){

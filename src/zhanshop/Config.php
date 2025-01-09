@@ -48,8 +48,6 @@ class Config
             $files = glob($this->path . '*' . $this->ext);
         }
 
-        $this->autoloadRegister();
-
         foreach ($files as $file) {
             $this->load($file, pathinfo($file, PATHINFO_FILENAME));
         }
@@ -145,7 +143,7 @@ class Config
      * @param  mixed  $default 默认值
      * @return mixed
      */
-    public function get(string $name = null, $default = null)
+    public function get(string $name = "", mixed $default = null)
     {
         // 无参数时获取所有
         if (empty($name)) {
@@ -179,7 +177,7 @@ class Config
      * @param  string $name 配置名
      * @return array
      */
-    public function set(array $config, string $name = null): array
+    public function set(array $config, string $name = ""): array
     {
         if (!empty($name)) {
             if (isset($this->config[$name])) {
@@ -206,16 +204,5 @@ class Config
         foreach ($inis as $k => $v){
             ini_set($k, $v);
         }
-    }
-
-    // 自动注册
-    private function autoloadRegister(){
-        spl_autoload_register(function ($class) {
-            $classFile = App::rootPath() .DIRECTORY_SEPARATOR. str_replace('\\', DIRECTORY_SEPARATOR, $class) . '.php';
-            if (file_exists($classFile)) {
-                require_once ($classFile);
-                return true;
-            }
-        });
     }
 }

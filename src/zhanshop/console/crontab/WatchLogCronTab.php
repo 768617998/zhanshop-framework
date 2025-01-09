@@ -19,7 +19,7 @@ class WatchLogCronTab extends Crontab
 
     public function configure()
     {
-        $this->setTitle("日志检查和清理")->interval(3600); // 设置每小时执行一次
+        $this->setTitle("日志检查和清理")->everyday(3);
     }
 
     /**

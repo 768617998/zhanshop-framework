@@ -11,47 +11,97 @@ declare (strict_types=1);
 namespace zhanshop\servevent;
 
 use zhanshop\App;
-use zhanshop\Error;
-use zhanshop\Response;
+use zhanshop\console\command\server\Accepted;
+use zhanshop\Log;
 use zhanshop\ServEvent;
 
 class JsonRpcEvent extends ServEvent
 {
+    /**
+     * 建立连接
+     * @param $server
+     * @param $fd
+     * @param $reactorId
+     * @return void
+     */
+    public function onConnect($server, $fd, $reactorId) :void
+    {
+        App::make(Accepted::class)->newConnection($fd);
+    }
+
+    /**
+     * 接收tcp消息
+     * @param $server
+     * @param $fd
+     * @param $reactorId
+     * @param $data
+     * @return void
+     */
     public function onReceive($server, $fd, $reactorId, $data) :void{
-
-        try {
-            $data = $this->getData($data);
-            $uris = explode('/', $data['path']);
-            if(isset($uris[1]) && isset($uris[2])){
-                $service = App::route()->getJsonRpc('/'.$uris[1], $uris[2]);
-
-                $method = $uris[2];
-                $req = new $service['param'][0]($data['body'] ?? []);
-                $resp = new $service['param'][1];
-                App::make($service['service'])->$method($req, $resp);
-                $server->send($fd, json_encode([
-                    'code' => 0,
-                    'msg' => 'OK',
-                    'data' => $resp->toArray()
-                ]), JSON_UNESCAPED_UNICODE);
+        $connection = App::make(Accepted::class)->getConnection($fd);
+        if($connection && $data !== ""){
+            $connection->setBuff($data);
+            $fullData = &$connection->getBuff();
+            try {
+                if(strpos($fullData, "\r\n") !== false){
+                    $arr = explode("\r\n", $fullData);
+                    for($i = 0; $i < count($arr) - 1; ++$i){
+                        $rowData = $arr[$i];
+                        $this->rpcRequest($server, $fd, $reactorId, $rowData);
+                        $fullData = substr($fullData, strlen($rowData) + 2);
+                    }
+                }
+            }catch (\Throwable $e){
+                $fullData = "";
             }
-        }catch (\Throwable $e){
-            $server->send($fd, json_encode([
-                'code' => $e->getCode() ? $e->getCode() : 500,
-                'msg' => $e->getMessage(),
-                'data' => [
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'trace' => $e->getTrace(),
-                ]
-            ],JSON_UNESCAPED_UNICODE));
         }
     }
 
-    private function getData(string &$data){
-        $data = json_decode($data, true);
-        if($data == false) App::error()->setError($data.PHP_EOL.'不是一个有效的json', 400);
-        if(isset($data['path']) == false) App::error()->setError('没有指定访问地址参数path', 400);
-        return $data;
+    /**
+     * rpc请求
+     * @param $server
+     * @param $fd
+     * @param $reactorId
+     * @param $data
+     * @return void
+     */
+    protected function rpcRequest($server, $fd, $reactorId, $data)
+    {
+        $startTime = microtime(true);
+        $request = json_decode($data, true);
+        [$path, $query] = explode('?', $request["path"] ?? 'zhanshop\\RpcClient.undefined?0=undefined');
+        parse_str($query ?? "", $query);
+        [$class, $method] = explode('.', $path);
+        if($query == false) $query = [];
+        $code = 0;
+        $msg = "OK";
+        $data = null;
+        try {
+            $instance = new $class(...$query);
+            $data = $instance->$method(...$request['body']);
+        }catch (\Throwable $e){
+            $code = 500;
+            $msg = $e->getMessage();
+        }
+        $resp = [
+            'code' => $code,
+            'msg' => $msg,
+            'header' => [],
+            'data' => $data,
+            'runtime' => microtime(true) - $startTime
+        ];
+        App::log()->push(json_encode([
+            'path' => $path,
+            'query' => $query,
+            'body' => $request['body'],
+            'resp' => $resp
+        ], JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE), Log::NOTICE, 'RPC');
+        
+        $server->send($fd, json_encode($resp, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE)."\r\n");
+    }
+
+    public function onClose($server, $fd, $reactorId) :void
+    {
+        App::make(Accepted::class)->closeConnection($fd);
     }
 }
