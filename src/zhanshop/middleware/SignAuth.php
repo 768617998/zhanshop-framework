@@ -36,7 +36,7 @@ class SignAuth
             if(isset($appSigns[1]) == false || $secretKey == false){
                 App::error()->setError("签名不存在", 401);
             }
-            $servSign = $signs[0].':'.base64_encode(hash_hmac("sha1", $appName.$request->server('request_uri').$appTime, $secretKey, true));
+            $servSign = $appSigns[0].':'.base64_encode(hash_hmac("sha1", $appName.$request->server('request_uri').$appTime, $secretKey, true));
             if($servSign != $appSign){
                 App::error()->setError("签名参数无效", 401);
             }
