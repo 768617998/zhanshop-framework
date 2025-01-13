@@ -30,8 +30,6 @@ class Response
      */
     protected mixed $rawResponse = null;
 
-    protected $httpCode = 200;
-    protected $header = [];
     protected $code = 0;
     protected $msg = "OK";
     protected $data = [];
@@ -86,10 +84,23 @@ class Response
     public function setcode(int $code)
     {
         $this->code = $code;
-        if($code < 200){
-            $this->httpCode = 500;
-        }elseif ($code > 499 && $code < 10000){
-            $this->httpCode = 500;
+
+    }
+
+    /**
+     * 获取HTTPcode
+     * @return int|mixed
+     */
+    protected function getHttpCode()
+    {
+        if ($this->code >= 200 && $this->code <= 504){
+            return $this->code;
+        }elseif ($this->code >= 20000){
+            return 200;
+        }elseif ($this->code >= 10000){
+            return 417;
+        }else{
+            return 500;
         }
     }
 
@@ -123,17 +134,6 @@ class Response
     }
 
     /**
-     * 设置响应头
-     * @param string $key
-     * @param string $value
-     * @return void
-     */
-    public function setHeader(string $key, string $value)
-    {
-        $this->header[$key] = $value;
-    }
-
-    /**
      * 发送消息响应
      * @param mixed $data
      * @return bool
@@ -158,7 +158,7 @@ class Response
      */
     private function sendHttp()
     {
-        $this->rawResponse->status($this->httpCode);
+        $this->rawResponse->status($this->getHttpCode());
         $this->rawResponse->header('Server', 'zhanshop');
         if(is_array($this->data)){
             $this->data['trace_id'] = microtime(true).rand(10000, 99999).'.'. App::config()->get('app.serial_code', 0).'.'.getmypid();

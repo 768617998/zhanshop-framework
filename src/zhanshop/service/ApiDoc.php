@@ -24,8 +24,14 @@ use zhanshop\route\Dispatch;
 class ApiDoc
 {
     protected $app = "";
+    protected $password = "";
     protected $menuList = [];
     protected $versionList = [];
+
+    public function __construct()
+    {
+        $this->password = App::env()->get("DOC_PASSWORD", "123456");
+    }
     /**
      * 初始化
      * @param string $appName
@@ -61,10 +67,37 @@ class ApiDoc
             'menu' => array_values($this->menuList),
             'user' => [
                 "user_id" => 0,
-                "user_name" => "游客",
-                "avatar" => "http://test-cdn.zhanshop.cn/2023314/16787312296131333165.jpg"
+                "user_name" => "开发者",
+                "avatar" => "./images/profile.png"
             ]
         ];
+    }
+
+    /**
+     * 认证
+     * @param Request $request
+     * @param Response $response
+     * @return bool
+     */
+    public function authorization(Request $request, ?Response $response = null)
+    {
+        $authCode = $request->header('authorization', "");
+        if($authCode == false){
+            return false;
+        }
+        $arr = explode(" ", $authCode);
+        if(isset($arr[1]) == false){
+            return false;
+        }
+        $accPass = base64_decode($arr[1]);
+        $arr = explode(":", $accPass);
+        $account = $arr[0];
+        $password = $arr[1] ?? '';
+        if($password == $this->password){
+            if($response) $response->rawResponse()->setCookie("APP-NAME", $account, 0, '/');
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -74,7 +107,12 @@ class ApiDoc
      * @return array
      * @throws \Exception
      */
-    public function call(Request &$request, Response &$response){
+    public function call(Request $request, Response $response){
+        if($this->authorization($request, $response) == false){
+            $response->setcode(401);
+            $response->rawResponse()->header("WWW-Authenticate", 'Basic realm="My Realm"');
+            return "";
+        }
         $app = $request->getData('_app');
         $this->init($app);
         $method = strtolower($request->method());

@@ -51,7 +51,6 @@ class WebHandle
             $dispatch->setVersion('v1');
             App::route()->rule('GET', '/api.doc', [ApiDoc::class, 'call']);
             App::route()->rule('POST', '/api.doc', [ApiDoc::class, 'call']);
-            App::route()->rule('POST', '/git.push', [Git::class, 'call']);
         }
     }
 
@@ -94,6 +93,7 @@ class WebHandle
 
         $httpRequest = new Request(Server::HTTP, $request);
         $httpResponse = new Response(Server::HTTP, $response);
+        $httpResponse->setcode(200);
         $httpRequest->setData('__resp__', $httpResponse);
 
         try {

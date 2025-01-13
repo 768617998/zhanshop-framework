@@ -17,13 +17,12 @@ class Httpclient
     protected $config = [
         "enable_ipv6" => false,
         'options' => [
-            'timeout' => 3000,
+            'timeout' => 3,
             'keep_alive' => false,
             // 用于处理流式响应内容
             //'write_func' => function($client, $data){},
         ],
         'cookie' => '',
-        'timeout' => 60000,
         'header' => [],
         'uploadfile' => [], // 上传文件对象
         'uploaddata' => [], // 上传文件内容
@@ -111,7 +110,7 @@ class Httpclient
      * @return $this
      */
     public function setTimeout(int $timeout = 3000){
-        $this->setOptions('timeout', $timeout);
+        $this->setOptions('timeout', $timeout / 1000);
         return $this;
     }
 

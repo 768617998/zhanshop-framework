@@ -53,7 +53,11 @@ class Annotations
         if(isset($matches[1])){
             $matches[1] = array_values(array_filter(explode(',',$matches[1])));
             foreach($matches[1] as $v){
-                $middlewares[] = '\\app\\middleware\\'.str_replace('/', '\\', $v);
+                if(strpos($v, '\\') === false){
+                    $middlewares[] = '\\app\\middleware\\'.str_replace('/', '\\', $v);
+                }else{
+                    $middlewares[] = $v;
+                }
             }
         }
         return $middlewares;

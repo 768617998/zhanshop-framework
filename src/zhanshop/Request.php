@@ -255,7 +255,7 @@ class Request
      * 获取额外参数
      * @param mixed $name
      * @param mixed $val
-     * @return string
+     * @return mixed
      */
     public function getData(string $name = '', mixed $default = null){
         if ('' === $name) {

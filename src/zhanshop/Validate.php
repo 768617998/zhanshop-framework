@@ -47,7 +47,12 @@ class Validate
      */
     public function getData(){
         if($this->errors){
-            App::error()->setError(implode(', ', $this->errors), 99999);
+            try {
+                $badRequest = \app\constant\ApiCode::BAD_REQUEST;
+            }catch (\Throwable $throwable){
+                $badRequest = 400;
+            }
+            App::error()->setError(implode(', ', $this->errors), $badRequest);
         }
         return $this->data;
     }
@@ -58,9 +63,7 @@ class Validate
      * @throws \Exception
      */
     public function errors(){
-        if($this->errors){
-            App::error()->setError(implode(', ', $this->errors), 99999);
-        }
+        return $this->errors;
     }
 
     /**
