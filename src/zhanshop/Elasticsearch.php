@@ -492,7 +492,7 @@ class Elasticsearch
             if($result['code'] >= 400){
                 App::error()->setError($result['body']);
             }
-            $resp = json_decode($ret['body'], true);
+            $resp = json_decode($result['body'], true);
             $data['total'] = $resp['hits']['total'];
             $data['max_score'] = $resp['hits']['max_score'];
             $data['list'] = $resp['hits']['hits'];

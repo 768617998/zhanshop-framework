@@ -4,46 +4,37 @@ namespace zhanshop;
 
 class Limit
 {
-    protected $key = 'limit:';
-    protected $expireTime = 300;
+    protected $prefix = 'limit:';
 
     /**
-     * 过期时间
-     * @param int $expireTime
-     * @return void
-     */
-    public function setExpireTime(int $expireTime)
-    {
-        $this->expireTime = $expireTime;
-    }
-    /**
      * 验证是否被限流
-     * @param string $ip
      * @param string $key
-     * @return void
+     * @param int $expireTime
+     * @param $limit
+     * @return bool
      */
-    public function isPass(string $ip, string $key, $limit = 10)
+    public function isPass(string $key, int $expireTime = 300, $limit = 10)
     {
-        $key = $this->key.md5($ip).':'.$key;
-        if(App::cache()->get($key) >= $limit){
+        if($this->incr($key, $expireTime) > $limit){
             return false;
         }
         return true;
     }
 
     /**
-     * 记录次数
-     * @param string $ip
+     * 记录原子操作
      * @param string $key
-     * @return void
+     * @param int $expireTime
+     * @param int $step
+     * @return false|int|\Redis
      */
-    public function pass(string $ip, string $key)
+    public function incr(string $key, int $expireTime = 300, int $step = 1)
     {
-        $key = $this->key.md5($ip).':'.$key;
-        $number = App::cache()->get($key);
-        if($number == false){
-            App::cache()->set($key, 0, $this->expireTime);
+        $key = $this->prefix.$key;
+        $noExist = App::cache()->setnx($key, 0);
+        if($noExist == true){
+            App::cache()->expire($key, $expireTime, "NX");
         }
-        App::cache()->incr($key); // 递增
+        return App::cache()->incr($key, $step); // 递增
     }
 }

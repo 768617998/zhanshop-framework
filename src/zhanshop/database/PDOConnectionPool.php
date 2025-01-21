@@ -154,8 +154,8 @@ class PDOConnectionPool
         if($isRetry !== null){
             if($isRetry === false){
                 return $this->multiQuery($sqls, true);
-            }else{
-                throw new \Exception($e->getMessage(), (int)$e->getCode());
+            }else if($error){
+                throw new \Exception($error->getMessage(), (int)$error->getCode());
             }
         }
         return $result;

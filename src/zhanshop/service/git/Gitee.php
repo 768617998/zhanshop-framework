@@ -2,12 +2,9 @@
 
 namespace zhanshop\service\git;
 
-use app\task\GieeTask;
 use zhanshop\App;
 use zhanshop\Error;
 use zhanshop\Log;
-use zhanshop\Request;
-use zhanshop\Response;
 
 class Gitee
 {

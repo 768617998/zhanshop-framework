@@ -233,11 +233,7 @@ class Server extends Command
             $host = $server['host'];
             $port = $server['port'];
             $servType = $server['serv_type'];
-            if($servType == 2){
-                if(ScanPorts::checkUdp($host, $port) == 1){
-                    return true; // 被占用
-                }
-            }else{
+            if($servType != 2){
                 if(ScanPorts::checkTcp($host, $port) == 1){
                     return true; // 被占用
                 }

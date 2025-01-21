@@ -24,14 +24,11 @@ class IpLimitAuth
      * @throws \Exception
      */
     public function handle(Request $request, \Closure $next){
-        $key = 'ip:'.$request->realIp().':'.$request->server("request_method");
-        $uri = $request->server("request_uri", "");
-
+        $key = md5($request->realIp()).$request->server("request_uri", "").':'.$request->server("request_method");
         $limit = App::make(Limit::class);
-        if($limit->isPass($key, $uri, $this->triggerNum) == false){
-            App::error()->setError($uri.'触发IP限流', 429);
+        if($limit->isPass($key, $this->expireTime, $this->triggerNum) == false){
+            App::error()->setError('触发IP限流', 429);
         }
-        $limit->pass($key, $uri);
         return $next($request);
     }
 }

@@ -94,8 +94,9 @@ class Output
      * @param string $style
      */
     public function output(mixed $msg = '', $style = 'info', $newLine = true) : void{
+        $format = '';
         if (isset($this->styles[$style])) {
-            $format =$this->styles[$style];
+            $format = $this->styles[$style];
         }
 
         if ($newLine) {

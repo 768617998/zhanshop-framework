@@ -242,7 +242,7 @@ class ApiDoc
             'language' => 'required',
         ])->getData();
         [$version, $fullUri] = $this->parseUri($data['uri']);
-        $route = App::make(Dispatch::class)->routes()[$this->app][$version][$fullUri][$data['method']] ?? App::error()->setError($uri.'路由未注册', Error::NOT_FOUND);
+        $route = App::make(Dispatch::class)->routes()[$this->app][$version][$fullUri][$data['method']] ?? App::error()->setError($data['uri'].'路由未注册', Error::NOT_FOUND);
         $handler = $route['handler'];
         $class = new \ReflectionClass($handler[0]);
         $apiDoc = (new Annotations($class->getMethod($handler[1])->getDocComment()))->all();

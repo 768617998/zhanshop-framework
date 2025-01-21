@@ -81,10 +81,10 @@ class PullRegionData extends Command
         $httpclient = new Httpclient();
         $body = $httpclient->request($url)['body'];
 
-        $document = new Document($html);
+        $document = new Document($body);
         $allA = $document->getElementsByClassName('citytr')->getElementsByTagName('a');
         $allAData = $allA->toArray();
-        if($allAData == false) App::error()->setError("获取城市信息失败！！！\n\n拉取结果：".$html);
+        if($allAData == false) App::error()->setError("获取城市信息失败！！！\n\n拉取结果：".$body);
         foreach($allAData as $k => $v){
             if($k % 2 != 0){
                 $cityCode = strip_tags($allAData[$k - 1]);
@@ -115,15 +115,15 @@ class PullRegionData extends Command
         $httpclient = new Httpclient();
         $body = $httpclient->request($url)['body'];
 
-        $document = new Document($html);
+        $document = new Document($body);
         $allA = $document->getElementsByClassName('countytr')->getElementsByTagName('a');
         $allAData = $allA->toArray();
         if($allAData == false){
             // 验证里面是否包镇标识
-            if(strpos($html, 'class="towntr"') || strpos($html, "class='towntr'")){
+            if(strpos($body, 'class="towntr"') || strpos($body, "class='towntr'")){
                 return $this->getTown($regionData, $url);
             }
-            App::error()->setError($url."获取区县信息失败！！！\n\n拉取结果：".$html);
+            App::error()->setError($url."获取区县信息失败！！！\n\n拉取结果：".$body);
         }
         foreach($allAData as $k => $v){
             if($k % 2 != 0){
@@ -148,10 +148,10 @@ class PullRegionData extends Command
         $httpclient = new Httpclient();
         $body = $httpclient->request($url)['body'];
 
-        $document = new Document($html);
+        $document = new Document($body);
         $allA = $document->getElementsByClassName('towntr')->getElementsByTagName('a');
         $allAData = $allA->toArray();
-        if($allAData == false) App::error()->setError("获取街镇信息失败！！！\n\n拉取结果：".$html);
+        if($allAData == false) App::error()->setError("获取街镇信息失败！！！\n\n拉取结果：".$body);
         foreach($allAData as $k => $v){
             if($k % 2 != 0){
                 $townCode = strip_tags($allAData[$k - 1]);
@@ -175,10 +175,10 @@ class PullRegionData extends Command
         $httpclient = new Httpclient();
         $body = $httpclient->request($url)['body'];
 
-        $document = new Document($html);
+        $document = new Document($body);
         $allTd = $document->getElementsByClassName('villagetr')->getElementsByTagName('td');
         $allTdData = $allTd->toArray();
-        if($allTdData == false) App::error()->setError("获取居村委信息失败！！！\n\n拉取结果：".$html);
+        if($allTdData == false) App::error()->setError("获取居村委信息失败！！！\n\n拉取结果：".$body);
         foreach($allTdData as $k => $v){
             if(($k + 1) % 3 == 0){
                 $villageCode = strip_tags($allTdData[$k - 2]);

@@ -47,7 +47,7 @@ class Encode
      */
     public function publish(string $topic, string $message, int $qos = 0, int $messageId = 0, int $retain = 0, int $dup = 0): string
     {
-        $body = $this->packStr($array['topic']);
+        $body = $this->packStr($topic);
         if ($qos && $messageId) {
             $body .= $this->packShortInt($messageId);
         }

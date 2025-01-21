@@ -59,6 +59,7 @@ class ServerStatus
      * @return void
      */
     public static function client($url){
+        $statusData = [];
         $fp = stream_socket_client($url, $errno, $errstr, 30);
         if (!$fp) {
             echo "$errstr ($errno)\n";
@@ -72,7 +73,6 @@ class ServerStatus
                 ],
             ];
             fwrite($fp, json_encode($requestData)."\r\n");
-            $statusData = [];
             while (!feof($fp)) {
                 $data = fgets($fp, 4096);
                 if($data){

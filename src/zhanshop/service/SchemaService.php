@@ -54,6 +54,7 @@ class SchemaService
                 if(isset($oldSchema[$kk]['event']) && $oldSchema[$kk]['event']) $newSchema[$kk]['event'] = $oldSchema[$kk]['event'];
                 if(isset($oldSchema[$kk]['style']) && $oldSchema[$kk]['style']) $newSchema[$kk]['style'] = $oldSchema[$kk]['style'];
                 if(isset($oldSchema[$kk]['align']) && $oldSchema[$kk]['align']) $newSchema[$kk]['align'] = $oldSchema[$kk]['align'];
+                if(isset($oldSchema[$kk]['hide']) && $oldSchema[$kk]['hide']) $newSchema[$kk]['hide'] = $oldSchema[$kk]['hide'];
             }
         }
         return $newSchema;
