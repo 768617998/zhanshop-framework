@@ -10,11 +10,6 @@ declare (strict_types=1);
 
 namespace zhanshop\console;
 
-use Swoole\Coroutine;
-use zhanshop\App;
-use zhanshop\cache\CacheManager;
-use zhanshop\database\DbManager;
-
 abstract class Command
 {
     /**
@@ -89,7 +84,6 @@ abstract class Command
      */
     protected function useDatabase(){
         $this->isCoroutine = true;
-        App::make(DbManager::class);
         return $this;
     }
 
@@ -100,7 +94,6 @@ abstract class Command
      */
     protected function useCache(){
         $this->isCoroutine = true;
-        App::make(CacheManager::class);
         return $this;
     }
 

@@ -11,6 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\database\drive;
 
 use Swoole\Database\PDOConfig;
+use zhanshop\Helper;
 
 class Mysql
 {
@@ -33,8 +34,13 @@ class Mysql
             if(isset($this->config['params'][$k]) == false) $this->config['params'][$k] = $v;
         }
 
+        $hostname = Helper::gethostbyname($this->config['hostname']);
+        if (filter_var($hostname, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            $hostname = '['.$hostname.']';
+        }
+
         $pdoConfig = (new PDOConfig)
-            ->withHost($this->config['hostname'])
+            ->withHost($hostname)
             ->withPort((int)$this->config['hostport'])
             ->withDbName($this->config['database'])
             ->withCharset($this->config['charset'])

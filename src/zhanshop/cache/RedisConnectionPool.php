@@ -11,6 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\cache;
 use Swoole\Database\RedisConfig;
 use Swoole\Database\RedisPool;
+use zhanshop\Helper;
 
 /**
  * @mixin \Redis
@@ -30,8 +31,15 @@ class RedisConnectionPool
         $this->config = $config;
         $this->maxConnections = $config['pool']['max_connections'] ?? 20;
         $this->timeoutPool = $config['pool']['timeout'] ?? 0.1;
+
+
+        $hostname = Helper::gethostbyname($this->config['host']);
+        if (filter_var($hostname, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            $hostname = '['.$hostname.']';
+        }
+
         $this->pool = new RedisPool((new RedisConfig)
-            ->withHost($this->config['host'])
+            ->withHost($hostname)
             ->withPort((int)$this->config['port'])
             ->withAuth($this->config['password'] ?? '')
             ->withDbIndex((int)$this->config['select'] ?? 0)

@@ -25,7 +25,7 @@ class ApiRoute extends Command
 
     public function configure()
     {
-        $this->useDatabase()->setTitle('api注解生成路由')->setDescription('一键生成基于控制器配置的注解路由');
+        $this->setTitle('api注解生成路由')->setDescription('一键生成基于控制器配置的注解路由');
     }
 
     protected $versionRoutes = [];

@@ -98,7 +98,7 @@ class Validate
      * @param mixed $val
      * @return void
      */
-    protected function min(string $key, mixed $val, int $min){
+    protected function min(string $key, mixed $val, int $min = 0){
         if($val < $min){
             $this->errors[] = ($this->message[$key] ?? $key).'不能小于'.$min;
         }

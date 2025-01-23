@@ -339,4 +339,22 @@ declare (strict_types=1);\n\n";
         $endTime = $startTime + 86399;
         return [$startTime, $endTime];
     }
+
+    /**
+     * 域名解析
+     * @param string $domainName
+     * @param int $timeout
+     * @return string
+     */
+    public static function gethostbyname(string $domainName, int $timeout = 3)
+    {
+        if(!filter_var($domainName, FILTER_VALIDATE_IP)){
+            $addr = \Swoole\Coroutine\System::gethostbyname($domainName,AF_INET, $timeout);
+            if($addr) return $addr;
+
+            $addr = \Swoole\Coroutine\System::gethostbyname($domainName,AF_INET6, $timeout);
+            if($addr) return $addr;
+        }
+        return $domainName;
+    }
 }
