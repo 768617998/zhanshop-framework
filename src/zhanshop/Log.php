@@ -27,11 +27,12 @@ class Log
     protected $logBuffer = [];
     protected $buffSize = 500;
 
-    protected $lockTime = 0.01;
+    protected $lockTime = 1;
 
     public function __construct(){
-        $this->buffSize = App::config()->get("log.buffsize", 10000);
+        $this->buffSize = App::config()->get("log.buffsize", 20000);
         $this->logLevel = App::config()->get("log.level", 4);
+        $this->lockTime = floatval(App::env()->get("LOG_LOCK_TIME", "1"));
         if(PHP_OS == 'Darwin') $this->lockTime = 5;
         \Swoole\Timer::tick(3000, function(){
             if($this->logBuffer) $this->write();
@@ -128,6 +129,8 @@ class Log
         if($lock){
             error_log($logBuffer.PHP_EOL, 3, App::runtimePath().'/log/'.date('Ymd').'.log');
             Mutex::unlock();
+        }else{
+            Log::errorLog(SWOOLE_LOG_WARNING, "日志写入锁获取失败");
         }
     }
 }

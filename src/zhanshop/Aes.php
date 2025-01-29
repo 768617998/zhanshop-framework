@@ -25,7 +25,7 @@ class Aes
      * Aes constructor.
      */
     public function __construct(){
-        $appKey = App::config()->get('app.key');
+        $appKey = App::config()->get('app.app_key');
         if($appKey) $this->commonKey = $appKey;
     }
 

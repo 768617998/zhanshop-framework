@@ -10,6 +10,7 @@ declare (strict_types=1);
 
 namespace zhanshop\console\command;
 
+use Swoole\Coroutine;
 use zhanshop\App;
 use zhanshop\console\Command;
 use zhanshop\console\command\software\ScanPorts;
@@ -231,13 +232,27 @@ class Server extends Command
     protected function isUsePort(){
         foreach($this->config['servers'] as $server){
             $host = $server['host'];
+            if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                $host .= '['.$host.']';
+            }
             $port = $server['port'];
             $servType = $server['serv_type'];
             if($servType != 2){
-                if(ScanPorts::checkTcp($host, $port) == 1){
+                try {
+                    $socket = @stream_socket_server("tcp://{$host}:{$port}", $errno, $errstr, STREAM_SERVER_BIND);
+                    if($socket == false) return true; // 被占用
+                }catch (\Throwable $e){
+                    return true; // 被占用
+                }
+            }else{
+                try {
+                    $socket = @stream_socket_server("udp://{$host}:{$port}", $errno, $errstr);
+                    if($socket == false) return true; // 被占用
+                }catch (\Throwable $e){
                     return true; // 被占用
                 }
             }
+            fclose($socket);
         }
         return false;
     }
