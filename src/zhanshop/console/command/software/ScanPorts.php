@@ -68,7 +68,7 @@ class ScanPorts extends Command
         $host = Helper::gethostbyname($host);
         $scanPorts = array_keys($this->portDescription);
         if($ports != -1){
-            $ports = array_unique(explode(',', $ports));
+            $scanPorts = array_unique(explode(',', $ports));
         }
         foreach ($scanPorts as $port){
             $this->scan($host, intval($port));

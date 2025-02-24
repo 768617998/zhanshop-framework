@@ -233,7 +233,7 @@ class Server extends Command
         foreach($this->config['servers'] as $server){
             $host = $server['host'];
             if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-                $host .= '['.$host.']';
+                $host = '['.$host.']';
             }
             $port = $server['port'];
             $servType = $server['serv_type'];

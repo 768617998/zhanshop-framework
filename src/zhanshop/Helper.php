@@ -357,4 +357,35 @@ declare (strict_types=1);\n\n";
         }
         return $domainName;
     }
+
+    /**
+     * 使用对称加密
+     * @param $code
+     * @return string
+     */
+    public static function symmetryEncode(string $code)
+    {
+        $data = App::aes()->encrypt(time().','.$code);
+        $data = urlencode($data);
+        return str_replace("%", "_", $data);
+    }
+
+    /**
+     * 对称解密
+     * @param string $code
+     * @param $expire
+     * @return string|null
+     * @throws \Exception
+     */
+    public static function symmetryDecode(string $code, $expire = 300)
+    {
+        $code = str_replace("_", "%", $code);
+        $code = urldecode($code);
+        $data = App::aes()->decrypt($code);
+        $arr = explode(',', $data);
+        if(intval($arr[0]) + $expire < time()){
+            App::error()->setError("对称值无效", 400);
+        }
+        return $arr[1] ?? null;
+    }
 }
