@@ -308,6 +308,25 @@ class Request
     }
 
     /**
+     * 获取json请求参数
+     * @param mixed $name
+     * @param mixed|null $default
+     * @return array|mixed|null
+     */
+    public function getJson(mixed $name = '', mixed $default = null)
+    {
+        $rawContent= $this->rawRequest->getContent();
+        if($rawContent){
+            $json = json_decode($rawContent, true);
+            if ('' === $name) {
+                return $json ?? [];
+            }
+            return $json[$name] ?? $default;
+        }
+        return $default;
+    }
+
+    /**
      * 验证自定义数据
      * @return void
      */

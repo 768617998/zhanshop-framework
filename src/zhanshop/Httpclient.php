@@ -146,7 +146,7 @@ class Httpclient
      * @param int $length 发送数据的尺寸【可选参数】
      * @return void
      */
-    public function setUploadFile(string $key, string $filePath, ?string $type = null, ?string $filename = null, int $offset = 0, int $length = 0){
+    public function setUploadFile(string $key, string $filePath, string $type = '', string $filename = '', int $offset = 0, int $length = 0){
         $data = [
             'path' => $filePath,
             'type' => $type,
@@ -165,7 +165,7 @@ class Httpclient
      * @param string|null $filename 文件名称【可选参数，默认为 $name】
      * @return void
      */
-    public function uploadData(string $name, string $data, ?string $mimeType = null, ?string $filename = null)
+    public function uploadData(string $name, string $data, string $mimeType = '', string $filename = '')
     {
         $data = [
             'data' => $data,
@@ -228,6 +228,8 @@ class Httpclient
                 $addr = \Swoole\Coroutine\System::gethostbyname($domainName,AF_INET6, 5);
                 if ($addr) {
                     return $addr;
+                }elseif (strpos($domainName, '[') !== false){
+                    return str_replace(['[', ']'], '', $domainName);
                 }
             }
         }catch (\Throwable $e){}
@@ -263,7 +265,7 @@ class Httpclient
             $client->addFile($file['path'], $name, $file['type'], $file['filename'], $file['offset'], $file['length']);
         }
         foreach($this->config['uploaddata'] as $name => $content){
-            $client->addData($content['data'], $content['name'], $content['mimeType'], $content['filename']);
+            $client->addData($content['data'], $name, $content['mimeType'], $content['filename']);
         }
 
         if($data) $client->setData($data);
