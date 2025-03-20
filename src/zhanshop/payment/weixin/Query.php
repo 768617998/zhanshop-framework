@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\weixin;
 
 use zhanshop\App;
-use zhanshop\Curl;
+use zhanshop\Httpclient;
 
 class Query
 {
@@ -32,10 +32,9 @@ class Query
 
         if($other) $data = array_merge($data, $other);
 
-        $curl = new Curl();
-        $curl->seEncodeng(false);
-        $curl->setHeader('Accept', 'application/json');
-        $curl->setHeader('Content-Type', 'application/json');
+        $client = new Httpclient();
+        $client->setHeader('Accept', 'application/json');
+        $client->setHeader('Content-Type', 'application/json');
         $nonce = $config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
@@ -43,8 +42,8 @@ class Query
         $signature = $config->sign(implode("\n", [
                 'POST', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $config->get('privatekey'));
-        $curl->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
-        $payResp = $curl->request($url, 'GET', $data, false, false);
+        $client->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
+        $payResp = $client->request($url, 'GET', json_encode($data));
         return json_decode($payResp['body'], true);
     }
 
@@ -65,10 +64,9 @@ class Query
 
         if($other) $data = array_merge($data, $other);
 
-        $curl = new Curl();
-        $curl->seEncodeng(false);
-        $curl->setHeader('Accept', 'application/json');
-        $curl->setHeader('Content-Type', 'application/json');
+        $client = new Httpclient();
+        $client->setHeader('Accept', 'application/json');
+        $client->setHeader('Content-Type', 'application/json');
         $nonce = $config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
@@ -76,8 +74,8 @@ class Query
         $signature = $config->sign(implode("\n", [
                 'GET', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $config->get('privatekey'));
-        $curl->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
-        $payResp = $curl->request($url, 'POST', $data, false, false);
+        $client->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
+        $payResp = $client->request($url, 'POST', json_encode($data));
         return json_decode($payResp['body'], true);
     }
 }

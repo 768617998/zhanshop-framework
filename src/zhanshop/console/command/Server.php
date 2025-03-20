@@ -350,7 +350,9 @@ class Server extends Command
                 $protocol = 'ws';
                 break;
         }
-
+        if($conf['sock_type'] > 2){
+            $conf['host'] = '['.$conf['host'].']';
+        }
         if($conf['sock_type'] >= 512) $protocol .= 's';
         if($this->config['settings']['daemonize'] == false && $echoListenMsg) echo '['.date('Y-m-d H:i:s').'] ###[listen]###'." ".$protocol.'://'.$conf['host'].':'.$conf['port'].'/'.PHP_EOL;
         return $protocol;

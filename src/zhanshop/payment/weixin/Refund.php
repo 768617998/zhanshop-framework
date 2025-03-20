@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\weixin;
 
 use zhanshop\App;
-use zhanshop\Curl;
+use zhanshop\Httpclient;
 
 class Refund
 {
@@ -57,10 +57,9 @@ class Refund
 
         if($other) $data = array_merge($data, $other);
 
-        $curl = new Curl();
-        $curl->seEncodeng(false);
-        $curl->setHeader('Accept', 'application/json');
-        $curl->setHeader('Content-Type', 'application/json');
+        $client = new Httpclient();
+        $client->setHeader('Accept', 'application/json');
+        $client->setHeader('Content-Type', 'application/json');
         $nonce = $this->config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
@@ -68,8 +67,8 @@ class Refund
         $signature = $this->config->sign(implode("\n", [
                 'POST', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $this->config->get('privatekey'));
-        $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
-        $payResp = $curl->request($url, 'POST', $data, false, false);
+        $client->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
+        $payResp = $client->request($url, 'POST', json_encode($data));
         if($payResp['code'] != 200){
             App::error()->setError($payResp['body']);
         }

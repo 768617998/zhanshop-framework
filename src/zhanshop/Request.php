@@ -52,7 +52,7 @@ class Request
         $this->protocol = $protocol;
         $this->rawRequest = $rawRequest;
 
-        if($this->method(true) == 'POST' && strpos($this->contentType(), 'json') !== false){
+        if($this->method(true) != 'GET' && strpos($this->contentType(), 'json') !== false){
             $this->getInputData();
         }
     }
@@ -230,15 +230,11 @@ class Request
      * @return array|mixed|null
      */
     public function param(mixed $name = '', mixed $default = null){
-        switch ($this->method(true)){
-            case "POST":
-                $ret = $this->post($name, $default);
-                break;
-            default:
-                $ret = $this->get($name, $default);
-                break;
+        if($this->rawRequest()->post){
+            return $this->post($name, $default);
+        }else{
+            return $this->get($name, $default);
         }
-        return $ret;
     }
 
     /**

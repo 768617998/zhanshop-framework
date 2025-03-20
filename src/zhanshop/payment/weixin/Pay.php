@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\weixin;
 
 use zhanshop\App;
-use zhanshop\Curl;
+use zhanshop\Httpclient;
 
 class Pay
 {
@@ -60,10 +60,9 @@ class Pay
         if($other) $data = array_merge($data, $other);
 
 
-        $curl = new Curl();
-        $curl->seEncodeng(false);
-        $curl->setHeader('Accept', 'application/json');
-        $curl->setHeader('Content-Type', 'application/json');
+        $client = new Httpclient();
+        $client->setHeader('Accept', 'application/json');
+        $client->setHeader('Content-Type', 'application/json');
         $nonce = $this->config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
@@ -71,8 +70,8 @@ class Pay
         $signature = $this->config->sign(implode("\n", [
                 'POST', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $this->config->get('privatekey'));
-        $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
-        $payResp = $curl->debug()->request($url, 'POST', $data, false, false);
+        $client->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
+        $payResp = $client->debug()->request($url, 'POST', json_encode($data));
         if($payResp['code'] != 200){
             App::error()->setError($payResp['body']);
         }
@@ -125,13 +124,11 @@ class Pay
             ],
             'attach' => json_encode($attach), // 进行编码
         ];
-
         if($other) $data = array_merge($data, $other);
 
-        $curl = new Curl();
-        $curl->seEncodeng(false);
-        $curl->setHeader('Accept', 'application/json');
-        $curl->setHeader('Content-Type', 'application/json');
+        $client = new Httpclient();
+        $client->setHeader('Accept', 'application/json');
+        $client->setHeader('Content-Type', 'application/json');
         $nonce = $this->config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
@@ -139,8 +136,8 @@ class Pay
         $signature = $this->config->sign(implode("\n", [
                 'POST', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $this->config->get('privatekey'));
-        $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
-        $payResp = $curl->request($url, 'POST', $data, false, false);
+        $client->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
+        $payResp = $client->debug()->request($url, 'POST', json_encode($data));
         if($payResp['code'] != 200){
             App::error()->setError($payResp['body']);
         }
@@ -180,10 +177,9 @@ class Pay
         if(isset($other['payer']['openid']) == false) App::error()->setError('\$other[\'payer\'][\'openid\']缺失');
         if($other) $data = array_merge($data, $other);
 
-        $curl = new Curl();
-        $curl->seEncodeng(false);
-        $curl->setHeader('Accept', 'application/json');
-        $curl->setHeader('Content-Type', 'application/json');
+        $client = new Httpclient();
+        $client->setHeader('Accept', 'application/json');
+        $client->setHeader('Content-Type', 'application/json');
         $nonce = $this->config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
@@ -192,8 +188,8 @@ class Pay
         $signature = $this->config->sign(implode("\n", [
                 'POST', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $this->config->get('privatekey'));
-        $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
-        $payResp = $curl->request($url, 'POST', $data, false, false);
+        $client->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
+        $payResp = $client->request($url, 'POST', json_encode($data));
 
         if($payResp['code'] != 200) App::error()->setError($payResp['body'], $payResp['code']);
 
@@ -243,10 +239,9 @@ class Pay
 
         if($other) $data = array_merge($data, $other);
 
-        $curl = new Curl();
-        $curl->seEncodeng(false);
-        $curl->setHeader('Accept', 'application/json');
-        $curl->setHeader('Content-Type', 'application/json');
+        $client = new Httpclient();
+        $client->setHeader('Accept', 'application/json');
+        $client->setHeader('Content-Type', 'application/json');
         $nonce = $this->config->getNonce();
         $timestamp = strval(time());
         $path = parse_url($url, PHP_URL_PATH);
@@ -254,8 +249,8 @@ class Pay
         $signature = $this->config->sign(implode("\n", [
                 'POST', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $this->config->get('privatekey'));
-        $curl->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
-        $payResp = $curl->request($url, 'POST', $data, false, false);
+        $client->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
+        $payResp = $client->request($url, 'POST', json_encode($data));
         if($payResp['code'] != 200){
             App::error()->setError($payResp['body']);
         }

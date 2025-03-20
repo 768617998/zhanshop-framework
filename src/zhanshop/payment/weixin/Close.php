@@ -43,7 +43,7 @@ class Close
                 'POST', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $config->get('privatekey'));
         $httpClient->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
-        $payResp = $httpClient->request($url, 'POST', json_encode($data), false, false);
+        $payResp = $httpClient->request($url, 'POST', json_encode($data));
         return json_decode($payResp['body'], true);
     }
 }
