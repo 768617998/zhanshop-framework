@@ -142,8 +142,9 @@ http://jia-old.shuangcloud.com:7201/admin/
 密码: admin123
 
 接口服务：
-http://jia-old.shuangcloud.com:6201/apiDoc
-
+http://jia-old.shuangcloud.com:7200/apiDoc
+账号：zhanshop  
+密码：123456
 ~~~
 
 
