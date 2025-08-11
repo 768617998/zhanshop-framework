@@ -79,10 +79,11 @@ class Mysql
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
         $groupStr = $this->parseGroup($query, $query->getOptions("group", true));
         $alias = $this->parseAlias($query, $query->getOptions('alias', true));
+        $forceIndex = $this->parseForceIndex($query, $query->getOptions('force_index', true));
         $distinct = $query->getOptions('distinct', true);
         $field = $query->getOptions('field', true);
 
-        $sql = 'SELECT count('.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').') as __count FROM '.$query->getOptions('table').$alias.$joinStr.$whereStr.$groupStr.$havingStr;
+        $sql = 'SELECT count('.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').') as __count FROM '.$query->getOptions('table').$alias.$forceIndex.$joinStr.$whereStr.$groupStr.$havingStr;
         return $sql;
     }
 
@@ -93,10 +94,11 @@ class Mysql
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
         $groupStr = $this->parseGroup($query, $query->getOptions("group", true));
         $alias = $this->parseAlias($query, $query->getOptions('alias', true));
+        $forceIndex = $this->parseForceIndex($query, $query->getOptions('force_index', true));
         $distinct = $query->getOptions('distinct', true);
         $field = $query->getOptions('field', true);
 
-        $sql = 'SELECT AVG('.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').') as __avg FROM '.$query->getOptions('table').$alias.$joinStr.$whereStr.$groupStr.$havingStr;
+        $sql = 'SELECT AVG('.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').') as __avg FROM '.$query->getOptions('table').$alias.$forceIndex.$joinStr.$whereStr.$groupStr.$havingStr;
         return $sql;
     }
 
@@ -106,10 +108,11 @@ class Mysql
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
         $groupStr = $this->parseGroup($query, $query->getOptions("group", true));
         $alias = $this->parseAlias($query, $query->getOptions('alias', true));
+        $forceIndex = $this->parseForceIndex($query, $query->getOptions('force_index', true));
         $distinct = $query->getOptions('distinct', true);
         $field = $query->getOptions('field', true);
 
-        $sql = 'SELECT MIN('.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').') as __min FROM '.$query->getOptions('table').$alias.$joinStr.$whereStr.$groupStr.$havingStr;
+        $sql = 'SELECT MIN('.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').') as __min FROM '.$query->getOptions('table').$alias.$forceIndex.$joinStr.$whereStr.$groupStr.$havingStr;
         return $sql;
     }
 
@@ -119,10 +122,11 @@ class Mysql
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
         $groupStr = $this->parseGroup($query, $query->getOptions("group", true));
         $alias = $this->parseAlias($query, $query->getOptions('alias', true));
+        $forceIndex = $this->parseForceIndex($query, $query->getOptions('force_index', true));
         $distinct = $query->getOptions('distinct', true);
         $field = $query->getOptions('field', true);
 
-        $sql = 'SELECT MAX('.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').') as __max FROM '.$query->getOptions('table').$alias.$joinStr.$whereStr.$groupStr.$havingStr;
+        $sql = 'SELECT MAX('.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').') as __max FROM '.$query->getOptions('table').$alias.$forceIndex.$joinStr.$whereStr.$groupStr.$havingStr;
         return $sql;
     }
 
@@ -132,10 +136,11 @@ class Mysql
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
         $groupStr = $this->parseGroup($query, $query->getOptions("group", true));
         $alias = $this->parseAlias($query, $query->getOptions('alias', true));
+        $forceIndex = $this->parseForceIndex($query, $query->getOptions('force_index', true));
         $distinct = $query->getOptions('distinct', true);
         $field = $query->getOptions('field', true);
 
-        $sql = 'SELECT SUM('.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').') as __sum FROM '.$query->getOptions('table').$alias.$joinStr.$whereStr.$groupStr.$havingStr;
+        $sql = 'SELECT SUM('.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').') as __sum FROM '.$query->getOptions('table').$alias.$forceIndex.$joinStr.$whereStr.$groupStr.$havingStr;
         return $sql;
     }
 
@@ -146,10 +151,11 @@ class Mysql
         $groupStr = $this->parseGroup($query, $query->getOptions("group", true));
         $orderStr = $this->parseOrder($query, $query->getOptions("order", true)); // RAND() | id desc, age asc
         $alias = $this->parseAlias($query, $query->getOptions('alias', true));
+        $forceIndex = $this->parseForceIndex($query, $query->getOptions('force_index', true));
         $distinct = $query->getOptions('distinct', true);
         $field = $query->getOptions('field', true);
 
-        $sql = 'SELECT'.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').' FROM '.$query->getOptions('table').$alias.$joinStr.$whereStr.$groupStr.$havingStr.$orderStr.' LIMIT 1';
+        $sql = 'SELECT'.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').' FROM '.$query->getOptions('table').$alias.$forceIndex.$joinStr.$whereStr.$groupStr.$havingStr.$orderStr.' LIMIT 1';
         return $sql;
     }
 
@@ -161,10 +167,11 @@ class Mysql
         $orderStr = $this->parseOrder($query, $query->getOptions("order", true)); // RAND() | id desc, age asc
         $limitStr = $this->parseLimit($query, $query->getOptions("limit", true));
         $alias = $this->parseAlias($query, $query->getOptions('alias', true));
+        $forceIndex = $this->parseForceIndex($query, $query->getOptions('force_index', true));
         $distinct = $query->getOptions('distinct', true);
         $field = $query->getOptions('field', true);
 
-        $sql = 'SELECT'.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').' FROM '.$query->getOptions('table').$alias.$joinStr.$whereStr.$groupStr.$havingStr.$orderStr.$limitStr;
+        $sql = 'SELECT'.($distinct ? ' DISTINCT' : '').' '.($field ?? '*').' FROM '.$query->getOptions('table').$alias.$forceIndex.$joinStr.$whereStr.$groupStr.$havingStr.$orderStr.$limitStr;
         return $sql;
     }
 
@@ -173,6 +180,13 @@ class Mysql
             $alias = ' AS '.$alias;
         }
         return $alias;
+    }
+
+    public function parseForceIndex(Query &$query, ?string $field){
+        if($field){
+            $field = ' FORCE INDEX ('.$field.') ';
+        }
+        return $field;
     }
 
     protected function parseWhere(Query &$query, ?array $where){

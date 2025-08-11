@@ -24,6 +24,7 @@ class Log
     const ERROR = 6;
 
     protected $logLevel = 4;
+    protected $logType = 'File';
     protected $logBuffer = [];
     protected $buffSize = 500;
 
@@ -37,6 +38,11 @@ class Log
         \Swoole\Timer::tick(3000, function(){
             if($this->logBuffer) $this->write();
         });
+        $type = App::config()->get('log.type');
+        if(strpos($type, '\\') === false){
+            $type = '\\zhanshop\\log\\'.ucfirst($type);
+        }
+        $this->logType = $type;
     }
 
     /**
@@ -123,13 +129,14 @@ class Log
 
     public function write()
     {
-        $logBuffer = implode(PHP_EOL, $this->logBuffer);
-        $this->logBuffer = [];
         $lock = Mutex::lock($this->lockTime);
         if($lock){
-            error_log($logBuffer.PHP_EOL, 3, App::runtimePath().'/log/'.date('Ymd').'.log');
+            $logBuffer = $this->logBuffer;
+            $this->logBuffer = [];
             Mutex::unlock();
+            App::make($this->logType)->write($logBuffer);
         }else{
+            $this->logBuffer = [];
             Log::errorLog(SWOOLE_LOG_WARNING, "日志写入锁获取失败");
         }
     }

@@ -123,13 +123,20 @@ class Input
      * @return string
      */
     public function input(string $name, string $description, ?string $default = null){
-        echo '请输入('.$name.')'.$description . '：';
+        if($description) echo '请输入('.$name.')'.$description . '：';
         if(PHP_OS == 'WINNT'){
             $input = readline();
         }else{
-            $fp = fopen('/dev/stdin', 'r');
-            $input = fgets($fp, 255);
-            fclose($fp);
+            while (true){
+                try {
+                    $fp = fopen('/dev/stdin', 'r');
+                    $input = fgets($fp, 255);
+                    fclose($fp);
+                    break;
+                }catch (\Throwable $err){
+                    return $this->input($name, '', $default, true);
+                }
+            }
         }
         $input = chop($input);
         $input = $input === '' ? $default : $input;

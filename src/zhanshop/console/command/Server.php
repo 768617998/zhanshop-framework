@@ -20,7 +20,7 @@ use zhanshop\console\ServerStatus;
 use zhanshop\Log;
 use zhanshop\Mutex;
 use zhanshop\ProcessManager;
-use zhanshop\ServEvent;
+use zhanshop\server\Event;
 use zhanshop\ShareData;
 use zhanshop\Timer;
 
@@ -30,6 +30,7 @@ class Server extends Command
     public const UDP       = 2;
     public const HTTP      = 3;
     public const WEBSOCKET = 4;
+    public const HTTP_MCP = 5;
 
     protected $config = [
         'servers' => [
@@ -79,28 +80,28 @@ class Server extends Command
     ];
 
     protected $callbacks = [
-        ServEvent::ON_START => [ServEvent::class, 'onStart'],
-        ServEvent::ON_WORKER_START => [ServEvent::class, 'onWorkerStart'],
-        ServEvent::ON_WORKER_STOP => [ServEvent::class, 'onWorkerStop'],
-        ServEvent::ON_WORKER_EXIT => [ServEvent::class, 'onWorkerExit'],
-        ServEvent::ON_WORKER_ERROR => [ServEvent::class, 'onWorkerError'],
-        ServEvent::ON_PIPE_MESSAGE => [ServEvent::class, 'onPipeMessage'],
-        ServEvent::ON_REQUEST => [ServEvent::class, 'onRequest'],
-        ServEvent::ON_RECEIVE => [ServEvent::class, 'onReceive'],
-        ServEvent::ON_CONNECT => [ServEvent::class, 'onConnect'],
-        //ServEvent::ON_HAND_SHAKE => [ServEvent::class, 'onHandshake'],
-        ServEvent::ON_OPEN => [ServEvent::class, 'onOpen'],
-        ServEvent::ON_MESSAGE => [ServEvent::class, 'onMessage'],
-        ServEvent::ON_CLOSE => [ServEvent::class, 'onClose'],
-        ServEvent::ON_TASK => [ServEvent::class, 'onTask'],
-        ServEvent::ON_FINISH => [ServEvent::class, 'onFinish'],
-        ServEvent::ON_SHUTDOWN => [ServEvent::class, 'onShutdown'],
-        ServEvent::ON_PACKET => [ServEvent::class, 'onPacket'],
-        ServEvent::ON_MANAGER_START => [ServEvent::class, 'onManagerStart'],
-        ServEvent::ON_MANAGER_STOP => [ServEvent::class, 'onManagerStop'],
+        Event::ON_START => [Event::class, 'onStart'],
+        Event::ON_WORKER_START => [Event::class, 'onWorkerStart'],
+        Event::ON_WORKER_STOP => [Event::class, 'onWorkerStop'],
+        Event::ON_WORKER_EXIT => [Event::class, 'onWorkerExit'],
+        Event::ON_WORKER_ERROR => [Event::class, 'onWorkerError'],
+        Event::ON_PIPE_MESSAGE => [Event::class, 'onPipeMessage'],
+        Event::ON_REQUEST => [Event::class, 'onRequest'],
+        Event::ON_RECEIVE => [Event::class, 'onReceive'],
+        Event::ON_CONNECT => [Event::class, 'onConnect'],
+        //Event::ON_HAND_SHAKE => [Event::class, 'onHandshake'],
+        Event::ON_OPEN => [Event::class, 'onOpen'],
+        Event::ON_MESSAGE => [Event::class, 'onMessage'],
+        Event::ON_CLOSE => [Event::class, 'onClose'],
+        Event::ON_TASK => [Event::class, 'onTask'],
+        Event::ON_FINISH => [Event::class, 'onFinish'],
+        Event::ON_SHUTDOWN => [Event::class, 'onShutdown'],
+        Event::ON_PACKET => [Event::class, 'onPacket'],
+        Event::ON_MANAGER_START => [Event::class, 'onManagerStart'],
+        Event::ON_MANAGER_STOP => [Event::class, 'onManagerStop'],
         // 由于swoole5开始默认走SWOOLE_BASE模式就不存在管理进程下面两个方法主在SWOOLE_PROCESS下有效
-        //ServEvent::ON_BEFORE_RELOAD => [ServEvent::class, 'onBeforeReload'],
-        //ServEvent::ON_BEFORE_SHUTDOWN => [ServEvent::class, 'onBeforeShutdown'],
+        //Event::ON_BEFORE_RELOAD => [Event::class, 'onBeforeReload'],
+        //Event::ON_BEFORE_SHUTDOWN => [Event::class, 'onBeforeShutdown'],
     ];
     /**
      * @var \Swoole\Server
@@ -154,9 +155,9 @@ class Server extends Command
         self::$servNames = array_column($servers, 'name');
 
         $callbacks = $this->config['servers'][0]['callbacks'] ?? [];
-        $initial = $callbacks[ServEvent::ON_INITIAL] ?? null;
+        $initial = $callbacks[Event::ON_INITIAL] ?? null;
         if($initial) $initial();
-        unset($callbacks[ServEvent::ON_INITIAL]);
+        unset($callbacks[Event::ON_INITIAL]);
         foreach($this->callbacks as $k => $v){
             if(isset($callbacks[$k]) == false){
                 $callbacks[$k] = $v;
@@ -217,6 +218,7 @@ class Server extends Command
             if(file_exists($pidFile)){
                 $pid = intval(file_get_contents($this->config['settings']['pid_file']));
                 if($pid && \Swoole\Process::kill($pid, 0)){
+                    $this->output->output("进程ID{$pid}运行中...", 'error');
                     return $pid;
                 }
             }
@@ -242,6 +244,7 @@ class Server extends Command
                     $socket = @stream_socket_server("tcp://{$host}:{$port}", $errno, $errstr, STREAM_SERVER_BIND);
                     if($socket == false) return true; // 被占用
                 }catch (\Throwable $e){
+                    $this->output->output($port."tcp端口被占用...", 'error');
                     return true; // 被占用
                 }
             }else{
@@ -249,6 +252,7 @@ class Server extends Command
                     $socket = @stream_socket_server("udp://{$host}:{$port}", $errno, $errstr);
                     if($socket == false) return true; // 被占用
                 }catch (\Throwable $e){
+                    $this->output->output($port."udp端口被占用...", 'error');
                     return true; // 被占用
                 }
             }
@@ -417,14 +421,18 @@ class Server extends Command
             foreach($this->config['process'] as $v){
                 $process = new \Swoole\Process(function ($process) use ($server, $v) {
                     $process->set(['enable_coroutine' => true]);
-                    App::make($v)->execute($server);
+                    try {
+                        App::make($v)->execute($server);
+                    }catch (\Throwable $err){
+                        Log::errorLog(5, $err->getMessage().PHP_EOL.$err->getFile().':'.$err->getLine());
+                    }
+                    sleep(60);
                 }, false, 2, true);
                 $server->addProcess($process);
             }
 
         }
         Mutex::init();
-        ShareData::make(); // 构建共享内存实例
         Server::$server = $server;
         $server->start();
     }

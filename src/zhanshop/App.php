@@ -10,6 +10,8 @@ declare (strict_types=1);
 
 namespace zhanshop;
 use zhanshop\console\Output;
+use zhanshop\server\Route;
+use zhanshop\util\Phar;
 
 /**
  * @method static Console console()
@@ -18,16 +20,10 @@ use zhanshop\console\Output;
  * @method static Log log()
  * @method static Error error()
  * @method static Validate validate()
- * @method static Route route()
  * @method static Env env()
- * @method static WebHandle webhandle()
- * @method static Service service()
  * @method static Database database()
- * @method static Aes aes()
- * @method static Rsa rsa()
- * @method static Middleware middleware()
- * @method static Robot robot()
  * @method static Phar phar()
+ * @method static Route route()
  */
 class App extends Container
 {
@@ -88,16 +84,11 @@ class App extends Container
         'config'          => Config::class,
         'cache'           => Cache::class,
         'log'             => Log::class,
-        'route'           => Route::class,
-        'webhandle'       => WebHandle::class,
         'validate'        => Validate::class,
         'database'        => Database::class,
         'console'         => Console::class,
-        'middleware'      => Middleware::class,
-        'aes'             => Aes::class,
-        'rsa'             => Rsa::class,
-        'robot'           => Robot::class,
-        'phar'            => Phar::class
+        'phar'            => Phar::class,
+        'route'           => Route::class
     ];
 
     /**

@@ -12,6 +12,8 @@ declare (strict_types=1);
 namespace zhanshop;
 
 
+use zhanshop\util\Aes;
+
 class Helper
 {
     /**
@@ -89,28 +91,41 @@ declare (strict_types=1);\n\n";
     }
 
     /**
-     * 生成一个订单号
+     * 生成一个19位的订单号
      * @param $suffix
      * @return string
      */
-    public static function orderId($suffix = false, $ip = '127.0.0.1'){
-        $ip = str_replace('.','',$ip);//9位
-        if(is_numeric($ip) == false){
-            $ip = '127001';
-        }
-        if(($s = 9- strlen($ip))>0)$ip.=str_repeat ('0', $s);
-        $ip = substr($ip, 0, 9);
+    public static function orderId(){
         $date = new \DateTime();
-        $date = substr($date->format('ymdHisu'), 0, 14);
-        $order_id = $date.$ip;
-        if(!$suffix){
-            $order_id .= rand(100, 999);
-        }else{
-            $order_id .= $suffix;
-            if(($s = 3- strlen(strval($suffix)))>0)$order_id .= str_repeat ('0', $s);
-        }
-        return $order_id;
+        $date = substr($date->format('ymdHisu'), 0, 14).substr(strval(getmypid()), -1, 1);
+        $date .= sprintf("%04d", rand(0, 9999));
+        return intval($date);
+    }
 
+    /**
+     * 生成一个小于等于19位的数字
+     * @param $length
+     * @return string
+     */
+    public static function getNonceNum($length = 6)
+    {
+        if($length >= 19) $length = 19;
+        $max = intval(str_repeat("9", $length));
+        return sprintf("%0{$length}d", rand(0, $max));
+    }
+
+    /**
+     * 基于当前时间或者一个随机数
+     * @param $length
+     * @return string
+     */
+    public static function getDateNonceNum($length = 32){
+        $date = new \DateTime();
+        $date = substr($date->format('ymdHisu'), 0, 14).substr(strval(getmypid()), -1, 1);
+        $length -= strlen($date);
+        $max = intval(str_repeat("9", $length));
+        $date .= sprintf("%0{$length}d", rand(0, $max));
+        return $date;
     }
 
     /**
@@ -127,21 +142,6 @@ declare (strict_types=1);\n\n";
             $str .= substr($chars, mt_rand(0, strlen($chars)-1), 1);
         }
         return $str;
-    }
-
-    /**
-     * 获取当前域名
-     * @param $scheme
-     * @return mixed|string
-     */
-    public static function requestDomain($scheme = true){
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        if($scheme){
-            $https = $_SERVER['HTTPS'] ?? 'off';
-            $https = ($https == 'on') ? 'https://' : 'http://';
-            $host = $https.$host;
-        }
-        return $host;
     }
 
     /**
@@ -365,7 +365,7 @@ declare (strict_types=1);\n\n";
      */
     public static function symmetryEncode(string $code)
     {
-        $data = App::aes()->encrypt(time().','.$code);
+        $data = App::make(Aes::class)->encrypt(time().','.$code);
         $data = urlencode($data);
         return str_replace("%", "_", $data);
     }
@@ -377,15 +377,80 @@ declare (strict_types=1);\n\n";
      * @return string|null
      * @throws \Exception
      */
-    public static function symmetryDecode(string $code, $expire = 300)
+    public static function symmetryDecode(string $code, $expire = 9999999999)
     {
         $code = str_replace("_", "%", $code);
         $code = urldecode($code);
-        $data = App::aes()->decrypt($code);
-        $arr = explode(',', $data);
-        if(intval($arr[0]) + $expire < time()){
-            App::error()->setError("对称值无效", 400);
+        $data = App::make(Aes::class)->decrypt($code);
+        $arr = [];
+        if($data){
+            $arr = explode(',', $data);
+            if(intval($arr[0]) + $expire < time()){
+                return null;
+            }
         }
         return $arr[1] ?? null;
+    }
+
+    /**
+     * 对IPv4/IPv6地址进行求余运算
+     * @param string $ip IP地址（支持IPv4/IPv6）
+     * @param int $modulus 模数（必须>0）
+     * @return int|null 余数（0~modulus-1）
+     */
+    public static function ipMod($ip, $modulus = 256) {
+        // 验证模数有效性
+        if ($modulus <= 0) return 0;
+
+        // 检测并规范化IP地址
+        $ipType = 0;
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $ipType = 4;
+        } elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            $ipType = 6;
+            // 展开IPv6缩写（如::1 -> 0000:0000:0000:0000:0000:0000:0000:0001）
+            $ip = inet_pton($ip);
+            $ip = inet_ntop($ip); // 标准化格式
+        } else {
+            return 0;
+        }
+
+        try {
+            if ($ipType === 4) {
+                // IPv4处理：转为32位无符号整数
+                $numeric = sprintf('%u', ip2long($ip));
+            } else {
+                // IPv6处理：转为128位二进制后转十六进制字符串
+                $binary = inet_pton($ip);
+                $hex = unpack('H*', $binary)[1];
+                $numeric = gmp_init($hex, 16);
+            }
+
+            // 取余运算
+            if ($ipType === 4) {
+                $remainder = bcmod($numeric, (string)$modulus);
+            } else {
+                $remainder = gmp_intval(gmp_mod($numeric, $modulus));
+            }
+
+            return (int)$remainder;
+        } catch (Exception $e) {
+            return -1;
+        }
+    }
+
+    /**
+     * 字符串求余
+     * @param string $str
+     * @param $modulus
+     * @return int
+     */
+    public static function strMod(string $str, $modulus = 256) {
+        if ($modulus <= 0) return 0;
+        $sum = 0;
+        for ($i = 0; $i < strlen($str); $i++) {
+            $sum += ord($str[$i]);
+        }
+        return  $sum % $modulus;
     }
 }

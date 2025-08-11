@@ -10,14 +10,12 @@ declare (strict_types=1);
 
 namespace zhanshop\console\command;
 
-use zhanshop\apidoc\ApiDocModel;
-use zhanshop\apidoc\ApiDocService;
 use zhanshop\App;
 use zhanshop\console\Command;
 use zhanshop\console\Input;
 use zhanshop\console\Output;
 use zhanshop\Helper;
-use zhanshop\helper\Annotations;
+use zhanshop\util\Annotations;
 use zhanshop\Log;
 
 class ApiRoute extends Command

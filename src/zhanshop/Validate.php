@@ -128,6 +128,7 @@ class Validate
         {
             $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的email';
         }
+        $this->data[$key] = strval($val);
     }
 
     /**
@@ -141,6 +142,7 @@ class Validate
         {
             $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的url';
         }
+        $this->data[$key] = strval($val);
     }
 
     /**
@@ -153,7 +155,7 @@ class Validate
         if(($int = (int)$val) != $val && $val != null){
             $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的整数';
         }
-        $this->data[$key] = $int;
+        $this->data[$key] = intval($val);
     }
     /**
      * 数字验证 小数点也算
@@ -165,6 +167,7 @@ class Validate
         if($val != null && !is_numeric($val)){
             $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的数字';
         }
+        $this->data[$key] = floatval($val);
     }
 
     /**
@@ -177,6 +180,7 @@ class Validate
         if($val != null && (float)$val != $val){
             $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的浮点数';
         }
+        $this->data[$key] = floatval($val);
     }
 
     /**
@@ -187,9 +191,10 @@ class Validate
      */
     public function string(string $key ,mixed $val)
     {
-        if($val != null && !is_string($val)){
+        if(!is_string($val)){
             $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的字符串';
         }
+        $this->data[$key] = strval($val);
     }
 
     /**
@@ -211,8 +216,12 @@ class Validate
      * @return void
      */
     protected function mobile(string $key ,mixed $val){
-        $rule = '/^1[3-9]\d{9}$/';
-        if($this->regex($key, $val, $rule, true) == false) $this->errors[] = ($this->message[$key] ?? $key).'手机号码格式不正确';
+        $val = strval($val);
+        if($val){
+            $rule = '/^1[3-9]\d{9}$/';
+            if($this->regex($key, $val, $rule, true) == false) $this->errors[] = ($this->message[$key] ?? $key).'手机号码格式不正确';
+        }
+        $this->data[$key] = $val;
     }
 
     /**
@@ -222,10 +231,34 @@ class Validate
      * @return void
      */
     protected function card(string $key ,mixed $val){
-        $rule = '/(^[1-9]\d{5}(18|19|([23]\d))\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$)|(^[1-9]\d{5}\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}$)/';
-        if($this->regex($key, $val, $rule, true) == false) $this->errors[] = ($this->message[$key] ?? $key).'手机号码格式不正确';
+        $val = strval($val);
+        if($val != ''){
+            $rule = '/(^[1-9]\d{5}(18|19|([23]\d))\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}[0-9Xx]$)|(^[1-9]\d{5}\d{2}((0[1-9])|(10|11|12))(([0-2][1-9])|10|20|30|31)\d{3}$)/';
+            if($this->regex($key, $val, $rule, true) == false) $this->errors[] = ($this->message[$key] ?? $key).'身份证号码格式不正确';
+        }
+        $this->data[$key] = $val;
     }
 
+    /**
+     * 日期验证
+     * @param string $key
+     * @param mixed $val
+     * @return bool
+     */
+    protected function date(string $key ,mixed $val){
+        if(strtotime($val) === false) $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的日期';
+        $this->data[$key] = $val;
+    }
+    /**
+     * 时间验证
+     * @param string $key
+     * @param mixed $val
+     * @return bool
+     */
+    protected function time(string $key ,mixed $val){
+        if(strtotime($val) === false) $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的时间';
+        $this->data[$key] = $val;
+    }
     /**
      * 使用自定义函数验证
      * @param string $key

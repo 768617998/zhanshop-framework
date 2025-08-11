@@ -88,12 +88,8 @@ class ServerStatus
     public static function http($url){
         $httpclient = new Httpclient();
         $httpclient->setHeader("Content-Type", "application/json; charset=utf-8");
-        $httpclient->seEncodeng(false);
-        $response = $httpclient->request($url.'/v1/api.doc', "POST", json_encode([
-            '_method' => 'servStatus',
-            'appkey' => App::config()->get('app.app_key'),
-        ]));
-        $body = json_decode($response['body'], true)['data'];
+        $response = $httpclient->request($url.'/_status?app_key='.App::config()->get('app.app_key'));
+        $body = json_decode($response['body'], true);
         return self::translate($body);
     }
 

@@ -45,6 +45,17 @@ class Query
         return $this;
     }
 
+    /**
+     * 强制特定索引
+     * @param string $field
+     * @return $this
+     */
+    public function forceIndex(string $field)
+    {
+        $this->options['force_index'] = $field;
+        return $this;
+    }
+
     public function alias(string $alias){
         $this->options['alias'] = $alias;
         return $this;
