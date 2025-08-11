@@ -74,11 +74,7 @@ php8.4 以上版本，需要redis扩展的支持， pdo mysql 扩展的支持，
 │  ├─Database.php       数据库操作管理入口类
 │  ├─Helper.php         帮助函数
 │  ├─Log.php            日志类
-│  ├─Middleware.php     控制器中间件管理
-│  ├─RequestCache.php   请求缓存【相当于nginx的程序内部缓存】
 │  ├─Route.php          路由管理类
-│  ├─Service.php        service单例管理
-│  ├─Task.php           task任务管理
 │  ├─Validate.php       请求参数验证
 │  ├─console            控制台程序目录(包含http服务器,后台管理系统等程序)
 │  └─ ...  
@@ -137,14 +133,13 @@ cd docker
 ## 演习地址 【IPV6网络环境】
 ~~~
 后台管理系统：
-http://jia-old.shuangcloud.com:7201/admin/
+http://jia-tp.shuangcloud.com:7201/admin/
 账号: admin
 密码: admin123
 
 接口服务：
-http://jia-old.shuangcloud.com:7200/apiDoc
-账号：zhanshop  
-密码：123456
+http://jia-tp.shuangcloud.com:9021/apiDoc
+
 ~~~
 
 
