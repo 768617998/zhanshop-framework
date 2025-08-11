@@ -218,7 +218,7 @@ class Server extends Command
             if(file_exists($pidFile)){
                 $pid = intval(file_get_contents($this->config['settings']['pid_file']));
                 if($pid && \Swoole\Process::kill($pid, 0)){
-                    $this->output->output("进程ID{$pid}运行中...", 'error');
+                    //$this->output->output("进程ID{$pid}运行中...", 'error');
                     return $pid;
                 }
             }
