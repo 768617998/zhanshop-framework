@@ -16,7 +16,6 @@ use zhanshop\console\command\CallScript;
 use zhanshop\console\command\Help;
 use zhanshop\console\command\Http;
 use zhanshop\console\command\Phar;
-use zhanshop\console\command\PullRegionData;
 use zhanshop\console\command\Server;
 use zhanshop\console\command\software\Dnscheck;
 use zhanshop\console\command\software\ScanPorts;
@@ -52,7 +51,6 @@ class Console{
         'api:route' => ApiRoute::class,
         'software:scan:ports' => ScanPorts::class,
         'software:dns:check' => Dnscheck::class,
-        'pull:reagion' => PullRegionData::class,
     ];
 
     /**

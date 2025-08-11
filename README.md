@@ -1,10 +1,7 @@
 # zhanshop-php
 
-## 简介
-zhanshop-php 是一个基于swoole高性能轻量级框架、全程非阻塞、凭借swoole底层将php阻塞函数重写进行协程非阻塞化和php自身低开销特点爆发强劲的性能，性能较传统基于 PHP-FPM 的框架有质的提升，提供超高性能的同时，也保持着极其灵活的可扩展性， 一键快速生成业务逻辑层代码骨架，只需要编写业务逻辑代码即可，根据注释配置即可生成api文档，对PDO 和 redis连接池进行了封装，同一连接内事务支持，不同连接和不同数据库服务器之前的分布式事务等功能，全程APP容器化管理，数据库操作类和缓存操作类和thinkphp类似，简单易用。
-
-## 完整项目
-https://gitee.com/zhangqiquan_admin/zhanshop-php
+#### 介绍
+zhanshop-php 是一个高性能轻量级框架、集成多种协议如HTTP、JSONRPC、MCP、TCP、UDP、MTQQ等、全程非阻塞，性能较传统基于 PHP-FPM 的框架百倍的提升，提供超高性能的同时，也保持着极其灵活的可扩展性，根据注释配置即可生成api文档，对PDO 和 redis连接池进行了封装，同一连接内事务支持，不同连接和不同数据库服务器之前的分布式事务等功能，全程APP容器化管理，数据库操作类和缓存操作类和thinkphp类似，简单易用。
 
 ## server组成
 1. 业务层(包含控制器、service、model)
@@ -74,7 +71,6 @@ php8.4 以上版本，需要redis扩展的支持， pdo mysql 扩展的支持，
 │  ├─Database.php       数据库操作管理入口类
 │  ├─Helper.php         帮助函数
 │  ├─Log.php            日志类
-│  ├─Route.php          路由管理类
 │  ├─Validate.php       请求参数验证
 │  ├─console            控制台程序目录(包含http服务器,后台管理系统等程序)
 │  └─ ...  
@@ -138,7 +134,7 @@ http://jia-tp.shuangcloud.com:7201/admin/
 密码: admin123
 
 接口服务：
-http://jia-tp.shuangcloud.com:9021/apiDoc
+http://jia-tp.shuangcloud.com:6201/apiDoc
 
 ~~~
 

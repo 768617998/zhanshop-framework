@@ -3,7 +3,7 @@
 namespace zhanshop\server\middleware;
 
 use zhanshop\App;
-use zhanshop\Limit;
+use zhanshop\util\Limit;
 use zhanshop\server\Request;
 
 class IpLimitAuth
