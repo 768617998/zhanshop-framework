@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\weixin;
 
 use zhanshop\App;
-use zhanshop\Httpclient;
+use zhanshop\client\Httpclient;
 
 class Pay
 {
@@ -205,7 +205,7 @@ class Pay
 
         $time = strval(time());
 
-        $sign = $this->signBuild(join("\n", [$resData['appid'], $time, $resData['noncestr'], "prepay_id={$resData['prepayid']}", '']), $this->config->get('privatekey'));
+        $sign = $this->config->sign(join("\n", [$resData['appid'], $time, $resData['noncestr'], "prepay_id={$resData['prepayid']}", '']), $this->config->get('privatekey'));
         $resData['timestamp'] = $time;
         $resData['signtype'] = 'RSA';
         $resData['sign'] = $sign;

@@ -12,6 +12,7 @@ namespace zhanshop\server;
 
 use zhanshop\App;
 use zhanshop\console\command\Server;
+use zhanshop\Error;
 use zhanshop\Log;
 use zhanshop\Validate;
 

@@ -154,8 +154,8 @@ class Database{
         }catch (\Throwable $e){
             $error = $e->getMessage().' '.$e->getFile().':'.$e->getLine().' ; ';
             if($e->getCode() == 2006 || strpos($e->getMessage(), '2006') || strpos($e->getMessage(), 'ackets ')){
-                DbManager::clean();
-                DbManager::init(); // 重新初始化
+                //DbManager::clean();
+                //DbManager::init(); // 重新初始化
                 if($isRetry){
                     return $this->transactionXa($callback, $connections, false);
                 }

@@ -8,7 +8,7 @@
 // +----------------------------------------------------------------------
 declare (strict_types=1);
 
-namespace zhanshop;
+namespace zhanshop\client;
 
 use zhanshop\console\command\Server;
 

@@ -2,6 +2,8 @@
 
 namespace zhanshop\util;
 
+use zhanshop\App;
+
 class MaxFile
 {
     /**

@@ -2,6 +2,8 @@
 
 namespace zhanshop;
 
+use zhanshop\client\Httpclient;
+
 class Elasticsearch
 {
     protected $url;
@@ -450,7 +452,7 @@ class Elasticsearch
     /**
      * 分页查询
      * @param int $page
-     * @param in $limit
+     * @param int $limit
      * @return array
      */
     public function finder(int $page = 1, int $limit = 20){

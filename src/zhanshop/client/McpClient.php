@@ -52,6 +52,7 @@ class McpClient
             'id' => 0,
         ];
         if($this->debug) $client->debug();
+        if($this->apiKey) $client->setHeader('authorization', "Basic ".$this->apiKey);
         return $client->request($this->apiHost, "POST", json_encode($params));
     }
 
@@ -67,6 +68,7 @@ class McpClient
             'jsonrpc' => '2.0'
         ];
         if($this->debug) $client->debug();
+        if($this->apiKey) $client->setHeader('authorization', "Basic ".$this->apiKey);
         return $client->request($this->apiHost, "POST", json_encode($params));
     }
 
@@ -84,6 +86,7 @@ class McpClient
             'id' => $id,
         ];
         if($this->debug) $client->debug();
+        if($this->apiKey) $client->setHeader('authorization', "Basic ".$this->apiKey);
         return $client->request($this->apiHost, "POST", json_encode($params));
     }
 
@@ -101,6 +104,7 @@ class McpClient
             'id' => $id,
         ];
         if($this->debug) $client->debug();
+        if($this->apiKey) $client->setHeader('authorization', "Basic ".$this->apiKey);
         $result = $client->request($this->apiHost, "POST", json_encode($params));
         $body = explode("\r\ndata: ", $result['body'] ?? "");
         if($result['code'] != 200 || isset($body[1]) == false) App::error()->setError('mcp工具列表获取失败', $result['code']);
@@ -124,6 +128,7 @@ class McpClient
             'id' => $id,
         ];
         if($this->debug) $client->debug();
+        if($this->apiKey) $client->setHeader('authorization', "Basic ".$this->apiKey);
         return $client->request($this->apiHost, "POST", json_encode($params));
     }
 
@@ -141,6 +146,7 @@ class McpClient
             'id' => $id,
         ];
         if($this->debug) $client->debug();
+        if($this->apiKey) $client->setHeader('authorization', "Basic ".$this->apiKey);
         return $client->request($this->apiHost, "POST", json_encode($params));
     }
 
@@ -164,6 +170,7 @@ class McpClient
             'id' => $id,
         ];
         if($this->debug) $client->debug();
+        if($this->apiKey) $client->setHeader('authorization', "Basic ".$this->apiKey);
         $result = $client->request($this->apiHost, "POST", json_encode($params));
         $messages = explode("event: message\r\ndata: ", $result['body'] ?? "");
         $message = json_decode(end($messages), true);

@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\alipay;
 
 use zhanshop\App;
-use zhanshop\Httpclient;
+use zhanshop\client\Httpclient;
 
 class Config
 {
@@ -123,7 +123,7 @@ class Config
         $res = "-----BEGIN RSA PRIVATE KEY-----\n" .
             wordwrap($priKey, 64, "\n", true) .
             "\n-----END RSA PRIVATE KEY-----";
-        if($res == false) throw new Exception('您使用的私钥格式错误，请检查RSA私钥配置', 400);
+        if($res == false) throw new \Exception('您使用的私钥格式错误，请检查RSA私钥配置', 400);
         openssl_sign($stringToBeSigned, $sign, $res, OPENSSL_ALGO_SHA256);
         $sign = base64_encode($sign);
         //unset($systemParams['biz_content']);

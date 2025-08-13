@@ -11,7 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\payment\apple;
 
 use zhanshop\App;
-use zhanshop\Httpclient;
+use zhanshop\client\Httpclient;
 
 class Config
 {

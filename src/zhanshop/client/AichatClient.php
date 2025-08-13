@@ -106,9 +106,9 @@ class AichatClient
             if($text){
                 $content = ['role' => 'user', "content" => '工具（'.$func.'）返回的结果: '];
                 $content['content'] .= $text;
+                $this->config['messages'][] = $content;
+                return true;
             }
-            $this->config['messages'][] = $content;
-            return true;
         }
 
         $messageCallback = $this->messageCallback;

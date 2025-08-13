@@ -14,7 +14,6 @@ namespace zhanshop;
 use zhanshop\console\command\ApiRoute;
 use zhanshop\console\command\CallScript;
 use zhanshop\console\command\Help;
-use zhanshop\console\command\Http;
 use zhanshop\console\command\Phar;
 use zhanshop\console\command\Server;
 use zhanshop\console\command\software\Dnscheck;
@@ -122,7 +121,7 @@ class Console{
                 \Swoole\Coroutine\run(function() use ($command){
                     \Swoole\Coroutine\System::exec($command);
                 });
-            }catch (Throwable $exception){
+            }catch (\Throwable $exception){
 
             }
         }

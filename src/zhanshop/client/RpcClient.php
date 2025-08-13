@@ -4,7 +4,6 @@ namespace zhanshop\client;
 
 use Swoole\Coroutine\Client;
 use zhanshop\App;
-use const zhanshop\SWOOLE_SOCK_TCP;
 
 class RpcClient
 {

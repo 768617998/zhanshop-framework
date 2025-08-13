@@ -75,7 +75,7 @@ class WebHandle
             return function ($request) use ($stack, $pipe) {
                 try {
                     return $pipe($request, $stack);
-                } catch (Throwable $e) {
+                } catch (\Throwable $e) {
                     App::error()->setError($e->getMessage(), $e->getCode());
                 }
             };

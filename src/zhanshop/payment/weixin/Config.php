@@ -96,7 +96,7 @@ R9hk0fdHgX6raoKdQbqZJcYc
     {
         if (!openssl_sign($message, $signature, $privateKey, OPENSSL_ALGO_SHA256)) {
 
-            throw new Exception('Signing the input $message failed, please checking your $privateKey whether or nor correct.', 400);
+            throw new \Exception('Signing the input $message failed, please checking your $privateKey whether or nor correct.', 400);
         }
 
         return base64_encode($signature);
@@ -133,7 +133,7 @@ R9hk0fdHgX6raoKdQbqZJcYc
     public function getNonce($size = 32)
     {
         if ($size < 1) {
-            throw new InvalidArgumentException('Size must be a positive integer.');
+            throw new \InvalidArgumentException('Size must be a positive integer.');
         }
 
         return implode('', array_map(static function(string $c): string {

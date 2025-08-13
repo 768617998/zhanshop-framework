@@ -132,7 +132,7 @@ declare (strict_types=1);\n\n";
      *
      * 产生随机字符串，不长于32位
      * @param int $length
-     * @return 产生的随机字符串
+     * @return string
      */
     public static function getNonceStr($length = 32)
     {
@@ -434,7 +434,7 @@ declare (strict_types=1);\n\n";
             }
 
             return (int)$remainder;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return -1;
         }
     }

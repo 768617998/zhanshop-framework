@@ -10,6 +10,7 @@ declare (strict_types=1);
 
 namespace zhanshop\util;
 use Swoole\Coroutine;
+use zhanshop\App;
 
 class Mail
 {
