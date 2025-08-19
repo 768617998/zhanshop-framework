@@ -52,6 +52,21 @@ class AichatClient
     }
 
     /**
+     * 系统提示词
+     * @param string $prompt
+     * @return void
+     */
+    public function systemPrompt(string $prompt)
+    {
+        $this->config['messages'] = [
+            [
+                'role' => 'system',
+                'content' => $prompt
+            ]
+        ];
+    }
+
+    /**
      * 设置mcp连接
      * @param McpClient $client
      * @return void
