@@ -9,6 +9,7 @@ class Elasticsearch
     protected $url;
     protected $user;
     protected $pass;
+    protected $timeout = 3000;
     protected $options = [];
     public function __construct()
     {
@@ -16,6 +17,7 @@ class Elasticsearch
         $this->url = $config['scheme'].'://'.$config['host'].':'.$config['port'];
         $this->user = $config['user'];
         $this->pass = $config['pass'];
+        if(isset($config['timeout']) && is_int($config['timeout'])) $this->timeout = $config['pass'];
     }
 
     /**
@@ -26,7 +28,7 @@ class Elasticsearch
         $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
-        $result = $httpClient->enableIpv6()->request($this->url.'/_cat/indices?v');
+        $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/_cat/indices?v');
         $tables = explode("\n", $result['body']);
         $titles = $tables[0];
         $titles = array_values(array_filter(explode(" ", $titles)));
@@ -56,7 +58,7 @@ class Elasticsearch
         $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
-        $result = $httpClient->enableIpv6()->request($this->url.'/_cat/health?v');
+        $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/_cat/health?v');
         $status = explode("\n", $result['body']);
         $titles = $status[0];
         $titles = array_values(array_filter(explode(" ", $titles)));
@@ -85,7 +87,7 @@ class Elasticsearch
         $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
-        $result = $httpClient->enableIpv6()->request($this->url.'/'.$this->options['index'], "DELETE");
+        $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/'.$this->options['index'], "DELETE");
         if($result['code'] >= 400){
             return true;
         }
@@ -135,7 +137,7 @@ class Elasticsearch
         $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
-        $result = $httpClient->enableIpv6()->request($this->url.'/'.$this->options['index'].'/_mapping', "PUT", json_encode($data));
+        $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/'.$this->options['index'].'/_mapping', "PUT", json_encode($data));
         if($result['code'] >= 400){
             App::error()->setError($result['body']);
         }
@@ -260,7 +262,7 @@ class Elasticsearch
         $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
-        $result = $httpClient->enableIpv6()->request($this->url.'/'.$this->options['index'], "PUT", json_encode($data));
+        $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/'.$this->options['index'], "PUT", json_encode($data));
         $this->options = [];
         return json_decode($result['body'], true);
     }
@@ -278,7 +280,7 @@ class Elasticsearch
         $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
-        $result = $httpClient->enableIpv6()->request($this->url.'/'.$this->options['index'].'/_doc/'.$id.'?pretty', "POST", json_encode($data));
+        $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/'.$this->options['index'].'/_doc/'.$id.'?pretty', "POST", json_encode($data));
         if($result['code'] >= 400){
             App::error()->setError($result['body']);
         }
@@ -307,9 +309,10 @@ class Elasticsearch
         $this->options = [];
 
         $httpClient = new Httpclient();
+        //var_dump($this->user.':'.$this->pass);
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
-        $result = $httpClient->enableIpv6()->request($this->url.'/_bulk', "POST", $saveAll);
+        $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/_bulk', "POST", $saveAll);
         if($result['code'] >= 400){
             App::error()->setError($result['body']);
         }
@@ -490,7 +493,7 @@ class Elasticsearch
             $httpClient = new Httpclient();
             $httpClient->userPwd($this->user.':'.$this->pass);
             $httpClient->setHeader('Content-Type', 'application/json');
-            $result = $httpClient->enableIpv6()->request($url, 'POST', json_encode($params));
+            $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', json_encode($params));
             if($result['code'] >= 400){
                 App::error()->setError($result['body']);
             }
@@ -513,15 +516,14 @@ class Elasticsearch
      */
     public function query(string $sql){
         //POST /_sql?format=txt
-        $url = $this->baseUrl.'/_sql?format=json';
+        $url = $this->url.'/_sql?format=json';
         // 字符串字段不支持排序
         $params = ['query' => $sql];
-        $this->options = [];
 
         $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
-        $ret = $httpClient->enableIpv6()->request($this->url.'/'.$this->options['index'], "POST", json_encode($params));
+        $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, "POST", json_encode($params));
         if($ret['code'] >= 400){
             App::error()->setError($ret['body']);
         }
@@ -560,7 +562,7 @@ class Elasticsearch
         $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
-        $ret = $httpClient->enableIpv6()->request($url, 'POST', json_encode($params));
+        $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', json_encode($params));
         if($ret['code'] >= 400){
             App::error()->setError($ret['body']);
         }
@@ -601,7 +603,7 @@ class Elasticsearch
         $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
-        $ret = $httpClient->enableIpv6()->request($url, 'POST', json_encode($params));
+        $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', json_encode($params));
         if($ret['code'] >= 400){
             App::error()->setError($ret['body']);
         }
