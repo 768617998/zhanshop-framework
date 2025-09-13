@@ -17,7 +17,7 @@ class Elasticsearch
         $this->url = $config['scheme'].'://'.$config['host'].':'.$config['port'];
         $this->user = $config['user'];
         $this->pass = $config['pass'];
-        if(isset($config['timeout']) && is_int($config['timeout'])) $this->timeout = $config['pass'];
+        if(isset($config['timeout']) && is_int($config['timeout'])) $this->timeout = $config['timeout'];
     }
 
     /**
