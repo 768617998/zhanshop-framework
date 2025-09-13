@@ -611,6 +611,34 @@ class Elasticsearch
     }
 
     /**
+     * 基于组件ID 进行批量更新
+     * @param array $listData
+     * @param array $ids
+     * @return mixed
+     */
+    public function updateAll(array $listData, array $ids){
+        $url = $this->url.'/'.$this->options['index'].'/_bulk';
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/x-ndjson');
+        $params = [];
+        $updateAll = "";
+        foreach($listData as $k => $v){
+            $update = ['update' => ['_id' => $ids[$k]]];
+            $updateAll .= json_encode($update)."\n";
+            $data = ['doc' => $v];
+            $updateAll .= json_encode($data)."\n";
+        }
+        $updateAll .= "\r\n";
+
+        $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', $updateAll);
+        if($ret['code'] >= 400){
+            App::error()->setError($ret['body']);
+        }
+        return json_decode($ret['body'], true);
+    }
+
+    /**
      * 索引结构
      * @return mixed
      * @throws \Exception
