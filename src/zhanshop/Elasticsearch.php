@@ -610,4 +610,24 @@ class Elasticsearch
         return json_decode($ret['body'], true);
     }
 
+    /**
+     * 索引结构
+     * @return mixed
+     * @throws \Exception
+     */
+    public function mapping()
+    {
+        $url = $this->url.'/'.$this->options['index'].'/_mapping';
+
+        $this->options = [];
+
+        $httpClient = new Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url);
+        if($ret['code'] >= 400){
+            App::error()->setError($ret['body']);
+        }
+        return json_decode($ret['body'], true);
+    }
 }

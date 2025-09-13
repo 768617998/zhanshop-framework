@@ -11,6 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\server\service;
 
 use zhanshop\App;
+use zhanshop\Elasticsearch;
 use zhanshop\Helper;
 
 class SchemaService
@@ -21,8 +22,8 @@ class SchemaService
      * @param $connection
      * @return void
      */
-    public static function create(string $name){
-        $data = self::getCreateSchema($name);
+    public static function create(string $name, string $dbType = 'db'){
+        $data = self::getCreateSchema($name, $dbType);
         if($data){
             $schemaPath = App::appPath().DIRECTORY_SEPARATOR.'schema'.DIRECTORY_SEPARATOR.str_replace('.', DIRECTORY_SEPARATOR, $name).'.php';
             Helper::mkdirs(dirname($schemaPath)); // 创建目录 如果这个文件不存在的话
@@ -36,9 +37,9 @@ class SchemaService
      * @param $table
      * @return array
      */
-    public static function getCreateSchema($table){
+    public static function getCreateSchema(string $table, string $dbType = 'db'){
         $oldSchema = self::getOldSchema($table);
-        $newSchema = self::getNewSchema($table);
+        $newSchema = self::getNewSchema($table, $dbType);
         foreach($newSchema as $kk => $vv){
             if(isset($oldSchema[$kk])){
                 $newSchema[$kk]['search'] = $oldSchema[$kk]['search'] ?? $vv['search'];
@@ -77,13 +78,28 @@ class SchemaService
         return $data;
     }
 
-    public static function getNewSchema($table){
+    public static function getNewSchema(string $table, string $dbType = 'db'){
         try {
-            $data = App::database()->model($table)->query('SHOW FULL COLUMNS FROM '.$table);
+            if($dbType == 'db'){
+                $data = App::database()->model($table)->query('SHOW FULL COLUMNS FROM '.$table);
+            }else if($dbType == 'es'){
+                $client = new Elasticsearch();
+                $mapping = $client->indexName($table)->mapping();
+                $data = [];
+                foreach ($mapping[$table]['mappings']['properties'] ?? [] as $k => $v){
+                    $data[] = [
+                        'Field' => $k,
+                        'Type' => 'text',
+                        'Key' => '',
+                        'Null' => '',
+                        'Default' => '',
+                        'Comment' => $k
+                    ];
+                }
+            }
         }catch (\Throwable $err){
             $data = [];
         }
-
         $schemaData = [];
         foreach($data as $v){
             $maxlength = 0;
