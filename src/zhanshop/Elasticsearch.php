@@ -510,6 +510,30 @@ class Elasticsearch
     }
 
     /**
+     * 根据ES组件id查询数据
+     * @param mixed $id
+     * @return mixed
+     * @throws \Exception
+     */
+    public function get(mixed $id)
+    {
+        $url = $this->url.'/'.$this->options['index'].'/_doc/'.$id;
+        if(isset($this->options['field']) && $this->options['field']){
+            $url .= '?_source='.$this->options['field'];
+        }
+        $httpClient = new \zhanshop\client\Httpclient();
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $params = [];
+        $result = $httpClient->enableIpv6()->request($url);
+        if($result['code'] >= 400){
+            App::error()->setError($result['body']);
+        }
+        $result = json_decode($result['body'], true);
+        return $result;
+    }
+
+    /**
      * 执行sql
      * @param string $sql
      * @return array
