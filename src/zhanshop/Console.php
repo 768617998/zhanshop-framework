@@ -96,7 +96,6 @@ class Console{
         $instance->configure();
         if($instance->getIsCoroutine()){
             \Swoole\Coroutine\run(function() use (&$instance, &$input){
-                Mutex::init();
                 $log = App::log();
                 $instance->initialize(); // 初始化
                 $instance->execute($input, $this->output); // 执行控制台app

@@ -129,15 +129,8 @@ class Log
 
     public function write()
     {
-        $lock = Mutex::lock($this->lockTime);
-        if($lock){
-            $logBuffer = $this->logBuffer;
-            $this->logBuffer = [];
-            Mutex::unlock();
-            App::make($this->logType)->write($logBuffer);
-        }else{
-            $this->logBuffer = [];
-            Log::errorLog(SWOOLE_LOG_WARNING, "日志写入锁获取失败");
-        }
+        $logBuffer = $this->logBuffer;
+        $this->logBuffer = [];
+        App::make($this->logType)->write($logBuffer);
     }
 }

@@ -430,9 +430,7 @@ class Server extends Command
                 }, false, 2, true);
                 $server->addProcess($process);
             }
-
         }
-        Mutex::init();
         Server::$server = $server;
         $server->start();
     }

@@ -17,6 +17,16 @@ class File
     public function write(array $data)
     {
         $data = implode(PHP_EOL, $data);
-        error_log($data.PHP_EOL, 3, App::runtimePath().'/log/'.date('Ymd').'.log');
+        $fp = fopen(App::runtimePath().'/log/'.date('Ymd').'.log', 'a');
+        if ($fp === false) {
+            return false;
+        }
+        if (flock($fp, LOCK_EX)) {
+            fwrite($fp, $data.PHP_EOL);
+            fflush($fp);
+            flock($fp, LOCK_UN);
+        }
+        fclose($fp);
+        return true;
     }
 }
