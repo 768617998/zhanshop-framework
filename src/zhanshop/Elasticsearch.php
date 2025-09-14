@@ -21,11 +21,60 @@ class Elasticsearch
     }
 
     /**
+     * 使用http代理
+     * @param string $ip 代理IP
+     * @param int $port 代理端口
+     * @param string $user 代理用户
+     * @param string $password 代理密码
+     * @return $this
+     */
+    public function httpproxy(string $ip, int $port, string $user = "", string $password = "")
+    {
+        $ip = $this->getDnsHostIp($ip);
+        $this->options['proxy'][] = [
+            'type' => 1,
+            'host' => $ip,
+            'port' => $port,
+            'user' => $user,
+            'password' => $password
+        ];
+        return $this;
+    }
+
+    /**
+     * 使用socks5代理
+     * @param string $ip 代理IP
+     * @param int $port 代理端口
+     * @param string $user 代理用户
+     * @param string $password 代理密码
+     * @return $this
+     */
+    public function socks5(string $ip, int $port, string $user = "", string $password = "")
+    {
+        $this->options['proxy'][] = [
+            'type' => 2,
+            'host' => $ip,
+            'port' => $port,
+            'user' => $user,
+            'password' => $password
+        ];
+        return $this;
+    }
+
+    /**
      * 获取所有表
      * @return string[]
      */
     public function showTables(){
         $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+        $this->options = [];
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/_cat/indices?v');
@@ -56,6 +105,13 @@ class Elasticsearch
      */
     public function showStatus(){
         $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/_cat/health?v');
@@ -85,6 +141,13 @@ class Elasticsearch
      */
     public function truncate(){
         $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/'.$this->options['index'], "DELETE");
@@ -135,6 +198,14 @@ class Elasticsearch
         }
 
         $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+        $this->options = [];
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/'.$this->options['index'].'/_mapping', "PUT", json_encode($data));
@@ -260,6 +331,13 @@ class Elasticsearch
 //        ];
 
         $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/'.$this->options['index'], "PUT", json_encode($data));
@@ -278,9 +356,17 @@ class Elasticsearch
         if($id == false) $id = Helper::orderId();
 
         $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/'.$this->options['index'].'/_doc/'.$id.'?pretty', "POST", json_encode($data));
+        $this->options = [];
         if($result['code'] >= 400){
             App::error()->setError($result['body']);
         }
@@ -306,13 +392,21 @@ class Elasticsearch
             $saveAll .= json_encode($v)."\n";
         }
         $saveAll .= "\r\n";
-        $this->options = [];
 
         $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+        $this->options = [];
         //var_dump($this->user.':'.$this->pass);
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($this->url.'/_bulk', "POST", $saveAll);
+        $this->options = [];
         if($result['code'] >= 400){
             App::error()->setError($result['body']);
         }
@@ -479,7 +573,7 @@ class Elasticsearch
 
         if($params['query'] == false) unset($params['query']);
 
-        $this->options = [];
+
 
         $data = [
             'total' => 0,
@@ -491,6 +585,13 @@ class Elasticsearch
 
         try {
             $httpClient = new Httpclient();
+            foreach ($this->options['proxy'] ?? [] as $v){
+                if($v['type'] == 1){
+                    $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+                }else if($v['type'] == 2){
+                    $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+                }
+            }
             $httpClient->userPwd($this->user.':'.$this->pass);
             $httpClient->setHeader('Content-Type', 'application/json');
             $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', json_encode($params));
@@ -506,6 +607,7 @@ class Elasticsearch
         }catch (\Throwable $e){
             $data['errmsg'] = $e->getMessage();
         }
+        $this->options = [];
         return $data;
     }
 
@@ -521,7 +623,14 @@ class Elasticsearch
         if(isset($this->options['field']) && $this->options['field']){
             $url .= '?_source='.$this->options['field'];
         }
-        $httpClient = new \zhanshop\client\Httpclient();
+        $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $params = [];
@@ -545,6 +654,14 @@ class Elasticsearch
         $params = ['query' => $sql];
 
         $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+        $this->options = [];
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, "POST", json_encode($params));
@@ -581,9 +698,17 @@ class Elasticsearch
 
         if($params['query'] == false) unset($params['query']);
 
+        $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+
         $this->options = [];
 
-        $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', json_encode($params));
@@ -622,9 +747,17 @@ class Elasticsearch
             'lang' => 'painless',
         ];
 
+        $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+
         $this->options = [];
 
-        $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', json_encode($params));
@@ -643,6 +776,13 @@ class Elasticsearch
     public function updateAll(array $listData, array $ids){
         $url = $this->url.'/'.$this->options['index'].'/_bulk';
         $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/x-ndjson');
         $params = [];
@@ -663,6 +803,115 @@ class Elasticsearch
     }
 
     /**
+     * 使用脚本更新
+     * @param string $script
+     * @param mixed $_id
+     * @return mixed
+     * @throws \Exception
+     */
+    public function updateScript(string $script, mixed $_id)
+    {
+        $data = '{
+  "script": {
+    "source": "'.str_replace(["\n", "  "], "", $script).'",
+    "lang": "painless"
+  }
+}';
+
+        $url = $this->url.'/'.$this->options['index'].'/_update/'.$_id;
+        $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $params = [];
+        $result = $httpClient->enableIpv6()->request($url, 'POST', $data);
+        if($result['code'] >= 400){
+            App::error()->setError($result['body']);
+        }
+        $result = json_decode($result['body'], true);
+        return $result;
+    }
+
+    /**
+     * 使用脚本批量更新
+     * @param array $scripts
+     * @param array $_ids
+     * @return mixed
+     * @throws \Exception
+     */
+    public function updateScripts(array $scripts, array $_ids)
+    {
+        $updateAll = "";
+        foreach ($scripts as $k => $script){
+            $update = ['update' => ['_id' => $_ids[$k]]];
+            $updateAll .= json_encode($update)."\n";
+            $_script = '{"script": {"source": "'.str_replace(["\n", "  "], "", $script).'","lang": "painless"}}';
+            $updateAll .= $_script;
+        }
+        $updateAll .= "\r\n";
+        $url = $this->url.'/'.$this->options['index'].'/_bulk';
+        $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $params = [];
+        $result = $httpClient->enableIpv6()->request($url, 'POST', $updateAll);
+        if($result['code'] >= 400){
+            App::error()->setError($result['body']);
+        }
+        $result = json_decode($result['body'], true);
+        return $result;
+    }
+
+    /**
+     * 统计条数
+     * @return mixed
+     * @throws \Exception
+     */
+    public function count()
+    {
+        $url = $this->url.'/'.$this->options['index'].'/_count';
+        $params = ['query' => []];
+
+        $this->getQueryAndParam($params['query']);
+
+        $this->getQueryORParam($params['query']);
+
+        if($params['query'] == false) unset($params['query']);
+
+        $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+
+        $this->options = [];
+
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', json_encode($params));
+        if($ret['code'] >= 400){
+            App::error()->setError($ret['body']);
+        }
+        return json_decode($ret['body'], true);
+    }
+
+    /**
      * 索引结构
      * @return mixed
      * @throws \Exception
@@ -671,9 +920,17 @@ class Elasticsearch
     {
         $url = $this->url.'/'.$this->options['index'].'/_mapping';
 
+        $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+
         $this->options = [];
 
-        $httpClient = new Httpclient();
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url);
