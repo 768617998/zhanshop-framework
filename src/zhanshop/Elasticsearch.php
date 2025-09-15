@@ -481,21 +481,21 @@ class Elasticsearch
         if(isset($this->options['where'])){
             foreach($this->options['where'] as $v){
                 if($v[1] == 'like'){
-                    $field = is_int($v[2]) ?  $v[0] : $v[0].'.keyword';
+                    $field = is_int($v[2]) ?  $v[0] : $v[0];
                     $params['bool']['must'][] = [
                         'wildcard' => [$field => '*'.$v[2].'*']
                     ];
                 }else if($v[1] == '='){
-                    $field = is_int($v[2]) ?  $v[0] : $v[0].'.keyword';
+                    $field = is_int($v[2]) ?  $v[0] : $v[0];
                     $params['bool']['must'][]['term'][$field] = $v[2];
                 }else if($v[1] == 'in'){
-                    $field = is_int($v[2][0]) ?  $v[0] : $v[0].'.keyword';
+                    $field = is_int($v[2][0]) ?  $v[0] : $v[0];
                     $params['bool']['must'][]['terms'][$field] = $v[2];
                 }else if($v[1] == '!='){
-                    $field = is_int($v[2]) ?  $v[0] : $v[0].'.keyword';
+                    $field = is_int($v[2]) ?  $v[0] : $v[0];
                     $params['bool']['must_not'][]['terms'][$field] = $v[2];
                 }else if($v[1] == 'not in'){
-                    $field = is_int($v[2][0]) ?  $v[0] : $v[0].'.keyword';
+                    $field = is_int($v[2][0]) ?  $v[0] : $v[0];
                     $params['bool']['must_not'][]['terms'][$field] = $v[2];
                 }else{
                     // 大于等于 小于等于 不等于 range
@@ -514,15 +514,15 @@ class Elasticsearch
         if(isset($this->options['whereOr'])){
             foreach($this->options['whereOr'] as $v){
                 if($v[1] == 'like'){
-                    $field = is_int($v[2]) ?  $v[0] : $v[0].'.keyword';
+                    $field = is_int($v[2]) ?  $v[0] : $v[0];
                     $params['bool']['should'][] = [
                         'wildcard' => [$field => '*'.$v[2].'*']
                     ];
                 }else if($v[1] == '='){
-                    $field = is_int($v[2]) ?  $v[0] : $v[0].'.keyword';
+                    $field = is_int($v[2]) ?  $v[0] : $v[0];
                     $params['bool']['should'][]['term'][$field] = $v[2];
                 }else if($v[1] == 'in'){
-                    $field = is_int($v[2][0]) ?  $v[0] : $v[0].'.keyword';
+                    $field = is_int($v[2][0]) ?  $v[0] : $v[0];
                     $params['bool']['should'][]['terms'][$field] = $v[2];
                 }else{
                     // 大于等于 小于等于 不等于 range
@@ -904,6 +904,7 @@ class Elasticsearch
 
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
+
         $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', json_encode($params));
         if($ret['code'] >= 400){
             App::error()->setError($ret['body']);
