@@ -809,15 +809,19 @@ class Elasticsearch
      * @return mixed
      * @throws \Exception
      */
-    public function updateScript(string $script, mixed $_id)
+    public function updateScript(string $script, mixed $_id, array $params = [])
     {
+        $_params = '{}';
+        if($params){
+            $_params = json_encode($params);
+        }
         $data = '{
   "script": {
     "source": "'.str_replace(["\n", "  "], "", $script).'",
-    "lang": "painless"
+    "lang": "painless",
+    "params": '.$_params.'
   }
 }';
-
         $url = $this->url.'/'.$this->options['index'].'/_update/'.$_id;
         $httpClient = new Httpclient();
         foreach ($this->options['proxy'] ?? [] as $v){

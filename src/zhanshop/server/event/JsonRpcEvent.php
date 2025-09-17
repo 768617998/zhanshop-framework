@@ -52,6 +52,7 @@ class JsonRpcEvent extends Event
                     }
                 }
             }catch (\Throwable $e){
+                App::log()->push($e->getMessage(), 5, "ERROR");
                 $fullData = "";
             }
         }
@@ -69,35 +70,35 @@ class JsonRpcEvent extends Event
     {
         $startTime = microtime(true);
         $request = json_decode($data, true);
-        [$path, $query] = explode('?', $request["path"] ?? 'zhanshop\\RpcClient.undefined?0=undefined');
-        parse_str($query ?? "", $query);
-        [$class, $method] = explode('.', $path);
-        if($query == false) $query = [];
-        $code = 0;
-        $msg = "OK";
-        $data = null;
-        try {
-            $instance = new $class(...$query);
-            $data = $instance->$method(...$request['body']);
-        }catch (\Throwable $e){
-            $code = 500;
-            $msg = $e->getMessage();
+        if($request){
+            list($class, $method) = explode('.', $request['path']);
+            $query = $request['query'] ?? [];
+            $code = 0;
+            $msg = "OK";
+            $data = null;
+            try {
+                $instance = new $class(...$query);
+                $data = $instance->$method(...$request['body']);
+            }catch (\Throwable $e){
+                $code = 500;
+                $msg = $e->getMessage();
+            }
+            $resp = [
+                'code' => $code,
+                'msg' => $msg,
+                'header' => [],
+                'data' => $data,
+                'runtime' => microtime(true) - $startTime
+            ];
+            App::log()->push(json_encode([
+                'path' => $request['path'],
+                'query' => $query,
+                'body' => $request['body'],
+                'resp' => $resp
+            ], JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE), Log::NOTICE, 'RPC');
+
+            $server->send($fd, json_encode($resp, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE)."\r\n");
         }
-        $resp = [
-            'code' => $code,
-            'msg' => $msg,
-            'header' => [],
-            'data' => $data,
-            'runtime' => microtime(true) - $startTime
-        ];
-        App::log()->push(json_encode([
-            'path' => $path,
-            'query' => $query,
-            'body' => $request['body'],
-            'resp' => $resp
-        ], JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE), Log::NOTICE, 'RPC');
-        
-        $server->send($fd, json_encode($resp, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE)."\r\n");
     }
 
     public function onClose($server, $fd, $reactorId) :void
