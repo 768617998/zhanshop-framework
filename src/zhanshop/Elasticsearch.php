@@ -10,6 +10,7 @@ class Elasticsearch
     protected $user;
     protected $pass;
     protected $timeout = 3000;
+    protected $retry = 0;
     protected $options = [];
     public function __construct()
     {
@@ -17,6 +18,7 @@ class Elasticsearch
         $this->url = $config['scheme'].'://'.$config['host'].':'.$config['port'];
         $this->user = $config['user'];
         $this->pass = $config['pass'];
+        $this->retry = intval($config['retry']);
         if(isset($config['timeout']) && is_int($config['timeout'])) $this->timeout = $config['timeout'];
     }
 
@@ -582,7 +584,6 @@ class Elasticsearch
             'errmsg' => '',
             'original' => [],
         ];
-
         try {
             $httpClient = new Httpclient();
             foreach ($this->options['proxy'] ?? [] as $v){
@@ -822,7 +823,7 @@ class Elasticsearch
     "params": '.$_params.'
   }
 }';
-        $url = $this->url.'/'.$this->options['index'].'/_update/'.$_id;
+        $url = $this->url.'/'.$this->options['index'].'/_update/'.$_id.'?retry_on_conflict='.$this->retry;
         $httpClient = new Httpclient();
         foreach ($this->options['proxy'] ?? [] as $v){
             if($v['type'] == 1){
@@ -876,6 +877,63 @@ class Elasticsearch
             App::error()->setError($result['body']);
         }
         $result = json_decode($result['body'], true);
+        return $result;
+    }
+
+    /**
+     * 更新查询的数据
+     * @param string $script
+     * @param array $_ids
+     * @param array $params
+     * @return mixed
+     */
+    public function updateQuery(string $script, array $_ids, array $params = [], int $retry = 0)
+    {
+        $_params = '{}';
+        if($params){
+            $_params = json_encode($params);
+        }
+        $data = '{
+  "script": {
+    "source": "'.str_replace(["\n", "  "], "", $script).'",
+    "lang": "painless",
+    "params": '.$_params.'
+  },
+  "query":{
+    "terms": {"_id": '.json_encode($_ids).'}
+  }
+}';
+        $url = $this->url.'/'.$this->options['index'].'/_update_by_query?conflicts=proceed';
+        $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $params = [];
+        $result = $httpClient->enableIpv6()->request($url, 'POST', $data);
+        if($result['code'] >= 400){
+            App::error()->setError($result['body']);
+        }
+        $result = json_decode($result['body'], true);
+        // 冲突测试需要覆盖到
+        $versionConflicts = $result['version_conflicts'] ?? 0;
+        if($versionConflicts > 0 && $retry < $this->retry){
+            // 有了failures 中能拿到已经失败的id，现在需要的就是重复执行把IDS换一下
+            $_ids = [];
+            foreach ($result['failures'] ?? [] as $v){
+                $_ids[] = $v['id'];
+            }
+            if($_ids){
+                $retry += 1;
+                return $this->updateQuery($script, $_ids, $params, $retry);
+            }
+        }
+        $this->options = [];
         return $result;
     }
 
