@@ -724,6 +724,7 @@ class Elasticsearch
      * @return array
      */
     public function update(array $data){
+        // 如果触发409 并发版本更新冲突，将会导致部分成功部分失败
         $url = $this->url.'/'.$this->options['index'].'/_update_by_query?conflicts=proceed&wait_for_completion=false';
         $params = ['query' => []];
 
@@ -765,7 +766,12 @@ class Elasticsearch
         if($ret['code'] >= 400){
             App::error()->setError($ret['body']);
         }
-        return json_decode($ret['body'], true);
+        $result = json_decode($ret['body'], true);
+        $versionConflicts = $result['version_conflicts'] ?? 0;
+        if($versionConflicts > 0){
+            // 有了failures 中能拿到已经失败的id，现在需要的就是重复执行把IDS换一下
+        }
+        return $result;
     }
 
     /**
