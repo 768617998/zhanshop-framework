@@ -82,6 +82,7 @@ class JsonRpcEvent extends Event
             }catch (\Throwable $e){
                 $code = 500;
                 $msg = $e->getMessage();
+                $data = $e->getTraceAsString();
             }
             $resp = [
                 'code' => $code,

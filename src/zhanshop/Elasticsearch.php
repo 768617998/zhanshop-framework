@@ -635,7 +635,7 @@ class Elasticsearch
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $params = [];
-        $result = $httpClient->enableIpv6()->request($url);
+        $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url);
         if($result['code'] >= 400){
             App::error()->setError($result['body']);
         }
@@ -841,7 +841,7 @@ class Elasticsearch
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $params = [];
-        $result = $httpClient->enableIpv6()->request($url, 'POST', $data);
+        $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', $data);
         if($result['code'] >= 400){
             App::error()->setError($result['body']);
         }
@@ -878,7 +878,7 @@ class Elasticsearch
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $params = [];
-        $result = $httpClient->enableIpv6()->request($url, 'POST', $updateAll);
+        $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', $updateAll);
         if($result['code'] >= 400){
             App::error()->setError($result['body']);
         }
@@ -921,7 +921,7 @@ class Elasticsearch
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
         $params = [];
-        $result = $httpClient->enableIpv6()->request($url, 'POST', $data);
+        $result = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, 'POST', $data);
         if($result['code'] >= 400){
             App::error()->setError($result['body']);
         }
