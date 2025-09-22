@@ -25,7 +25,7 @@ class Httpclient
             // 用于处理流式响应内容
             //'write_func' => function($client, $data){},
         ],
-        'cookie' => '',
+        'cookie' => [],
         'header' => [],
         'uploadfile' => [], // 上传文件对象
         'uploaddata' => [], // 上传文件内容
@@ -289,7 +289,7 @@ class Httpclient
             return $this->request($url, $method, $data, false);
         }
 
-        $this->config['cookie'] = '';
+        $this->config['cookie'] = [];
         $this->config['header'] = [];
         $this->config['uploadfile'] = [];
         $this->config['uploaddata'] = [];
@@ -339,7 +339,7 @@ class Httpclient
         ];
         $client->close();
 
-        $this->config['cookie'] = '';
+        $this->config['cookie'] = [];
         $this->config['header'] = [];
         $this->config['uploadfile'] = [];
         $this->config['uploaddata'] = [];
@@ -398,7 +398,7 @@ class Httpclient
         $client->download($path, $saveFile);
         $statusCode = $client->getStatusCode();
         $client->close();
-        $this->config['cookie'] = '';
+        $this->config['cookie'] = [];
         $this->config['header'] = [];
         $this->config['uploadfile'] = [];
         $this->config['uploaddata'] = [];
