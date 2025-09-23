@@ -132,6 +132,20 @@ abstract class Crontab
         $this->rule['second'] = $second;
         return $this;
     }
+    /**
+     * 每天多少点多少分多少秒执行一次然后后面随机半天到1天半的时间范围执行
+     * @param int $hour
+     * @param $minute
+     * @param $second
+     * @return void
+     */
+    protected function everydayRand(int $hour, $minute = 0, $second = 0){
+        $this->rule['type'] = 'everydayRand';
+        $this->rule['hour'] = $hour;
+        $this->rule['minute'] = $minute;
+        $this->rule['second'] = $second;
+        return $this;
+    }
 
     /**
      * 每隔多少秒执行一次

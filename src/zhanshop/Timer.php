@@ -174,6 +174,35 @@ class Timer
     }
 
     /**
+     * 每天随机一个时间
+     * @param mixed $crontab
+     * @return void
+     */
+    protected function everydayRand(mixed $crontab)
+    {
+        $rule = $crontab->getRule();
+
+        $currentTime = time();
+        $ruleTime = strtotime(date('Y-m-d '.$rule['hour'].':'.$rule['minute'].':'.$rule['second']));
+        // 当前时间 0：0：0 执行是时间为0：0：5
+        // 如果时间已经过了今天就不会再执行了
+        if($ruleTime < $currentTime + 3){
+            // 明天执行的时间
+            $ruleTime = strtotime('+1 day', $ruleTime);
+        }
+        $ms = ($ruleTime - $currentTime) * 1000;
+        // 设置第一次执行的时间
+        $crontab->timerId = STimer::after($ms, function () use ($crontab){
+            $crontab->timerId = STimer::tick(rand(43200, 129600) * 1000, [$crontab, 'execute']); // 首次执行后添加下次执行的时间也就1天后的现在
+            try {
+                $crontab->execute();
+            }catch (\Throwable $e){
+                Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+            }
+        });
+    }
+
+    /**
      * 启动一个间歇定时任务
      * @param Crontab $crontab
      * @return void
