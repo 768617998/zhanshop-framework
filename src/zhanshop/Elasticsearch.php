@@ -557,11 +557,11 @@ class Elasticsearch
     public function finder(int $page = 1, int $limit = 20){
         $url = $this->url.'/'.$this->options['index'].'/_search';
         $offset = ($page - 1) * $limit;
-        $page--;
         // 字符串字段不支持排序
         $params = ['query' => []];
-        $params['from'] = $page;
+        $params['from'] = $offset;
         $params['size'] = $limit;
+        //$params['track_total_hits'] = true; //使用近似计数（track_total_hits 默认为 false track_total_hits: false，此时 total 是一个近似值（上限为 10,000），不是精确总数
 
         $this->getQueryAndParam($params['query']);
 
