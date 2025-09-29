@@ -17,6 +17,7 @@ use zhanshop\console\command\Help;
 use zhanshop\console\command\Phar;
 use zhanshop\console\command\Server;
 use zhanshop\console\command\software\Dnscheck;
+use zhanshop\console\command\software\MysqlRecovery;
 use zhanshop\console\command\software\ScanPorts;
 use zhanshop\console\Input;
 use zhanshop\console\Output;
@@ -50,6 +51,7 @@ class Console{
         'api:route' => ApiRoute::class,
         'software:scan:ports' => ScanPorts::class,
         'software:dns:check' => Dnscheck::class,
+        'software:mysql:recovery' => MysqlRecovery::class,
     ];
 
     /**

@@ -79,6 +79,7 @@ class JsonRpcEvent extends Event
             try {
                 $instance = new $class(...$query);
                 $data = $instance->$method(...$request['body']);
+                unset($instance);
             }catch (\Throwable $e){
                 $code = 500;
                 $msg = $e->getMessage();

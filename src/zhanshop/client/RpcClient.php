@@ -25,7 +25,7 @@ class RpcClient
         $this->timeOut = floatval(App::env()->get("RPC_TIMEOUT", "3"));
         [$this->host, $this->port] = explode(':', $rpcServer);
         $this->path = $className;
-        $this->query = http_build_query($value);
+        $this->query = $value;
         return $this;
     }
 
@@ -44,14 +44,16 @@ class RpcClient
         }
 
         $request = [
-            'path' => $this->path.'.'.$method.'?'.$this->query,
+            'path' => $this->path.'.'.$method,
+            'query' => $this->query,
             'header' => [],
             'body' => $param,
         ];
         $client->send(json_encode($request, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE)."\r\n");
         $fullData = "";
+        $startTime = microtime(true);
         while (true){
-            $recv = $client->recv();
+            $recv = $client->recv(1);
             if($recv === ""){
                 $fullData = $recv;
                 break;
@@ -60,13 +62,15 @@ class RpcClient
                 if(strpos($fullData, "\r\n") !== false){
                     break;
                 }
+                if((microtime(true) - $startTime) > $this->timeOut) App::error()->setError($this->host.':'.$this->port.'rpc消息响应超时', 408);
             }
         }
 
         if($fullData === ""){
             $client->close();
-            App::error()->setError($this->host.':'.$this->port.'/'.$this->path.'/'.$method.'?'.$this->query.' rpc连接失败');
+            App::error()->setError($this->host.':'.$this->port.'/'.$this->path.'/'.$method.' rpc连接失败');
         }else{
+            $client->close();
             $data = json_decode($fullData, true);
             if($data == false) App::error()->setError("rpc返回的数据格式错误\n".$fullData);
             if(($data['code'] ?? 500) !== 0) App::error()->setError($data['msg'] ?? "发生未知错误");

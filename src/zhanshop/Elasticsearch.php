@@ -355,7 +355,7 @@ class Elasticsearch
      * @throws \Exception
      */
     public function insert(array $data, string $id = ""){
-        if($id == false) $id = Helper::orderId();
+        //if($id == false) $id = Helper::orderId();
 
         $httpClient = new Httpclient();
         foreach ($this->options['proxy'] ?? [] as $v){
@@ -383,7 +383,7 @@ class Elasticsearch
     public function insertAll(array $data, array $ids = []){
         $saveAll = "";
         foreach($data as $k => $v){
-            $orderId = $ids[$k] ?? Helper::orderId((string)$k);
+            $orderId = $ids[$k] ?? null;
             $save = [
                 'index' => [
                     '_index' => $this->options['index'],
