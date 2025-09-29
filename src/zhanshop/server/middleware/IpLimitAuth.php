@@ -1,33 +1,39 @@
 <?php
 
-namespace zhanshop\server\middleware;
+namespace zhanshop\util;
 
 use zhanshop\App;
-use zhanshop\util\Limit;
-use zhanshop\server\Request;
 
-class IpLimitAuth
+class Limit
 {
-    protected $triggerNum = 20; // 限制执行时间内上限此书
-    protected $expireTime = 300; // 有效时间
-    public function __construct()
-    {
-        $this->triggerNum = intval(App::env()->get("LIMIT_IP_TRIGGER", "20"));
-        $this->expireTime = intval(App::env()->get("LIMIT_EXPIRE_TIME", "600"));
-    }
+    protected $prefix = 'limit:';
+
     /**
-     * IP限流量认证
-     * @param Request $request
-     * @param \Closure $next
-     * @return mixed
-     * @throws \Exception
+     * 验证是否被限流
+     * @param string $key
+     * @param int $expireTime
+     * @param $limit
+     * @return bool
      */
-    public function handle(Request $request, \Closure $next){
-        $key = md5($request->realIp()).$request->server("request_uri", "").':'.$request->server("request_method");
-        $limit = App::make(Limit::class);
-        if($limit->isPass($key, $this->expireTime, $this->triggerNum) == false){
-            App::error()->setError('触发IP限流', 429);
+    public function isPass(string $key, int $expireTime = 300, $limit = 10)
+    {
+        if($this->incr($key, $expireTime) > $limit){
+            return false;
         }
-        return $next($request);
+        return true;
+    }
+
+    /**
+     * 记录原子操作
+     * @param string $key
+     * @param int $expireTime
+     * @param int $step
+     * @return false|int|\Redis
+     */
+    public function incr(string $key, int $expireTime = 300, int $step = 1)
+    {
+        $key = $this->prefix.$key;
+        App::cache()->set($key, 0, ['nx', 'ex' => $expireTime]);
+        return App::cache()->incr($key, $step); // 递增
     }
 }
