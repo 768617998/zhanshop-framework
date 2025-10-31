@@ -1008,4 +1008,33 @@ class Elasticsearch
         }
         return json_decode($ret['body'], true);
     }
+
+    /**
+     * 清理垃圾
+     * @return mixed
+     * @throws \Exception
+     */
+    public function cleanTrash(int $timeout = 300000)
+    {
+        $url = $this->url.'/'.$this->options['index'].'/_forcemerge?only_expunge_deletes=true';
+
+        $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+
+        $this->options = [];
+
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $ret = $httpClient->setTimeout($timeout)->enableIpv6()->request($url, "POST");
+        if($ret['code'] >= 400){
+            App::error()->setError($ret['body']);
+        }
+        return json_decode($ret['body'], true);
+    }
 }

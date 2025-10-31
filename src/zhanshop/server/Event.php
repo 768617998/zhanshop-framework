@@ -19,6 +19,7 @@ use zhanshop\database\DbManager;
 use zhanshop\Log;
 use zhanshop\server\Request;
 use zhanshop\server\Response;
+use zhanshop\util\Queue;
 use zhanshop\util\WebHook;
 
 class Event
@@ -129,6 +130,7 @@ class Event
         App::make(CacheManager::class); // 缓存管理初始化
         App::make(DbManager::class); // 数据库管理初始化
         App::make(WebHandle::class)->setServers($this->servNames)->router(); // webServer处理
+        App::make(Queue::class);
     }
 
     /**

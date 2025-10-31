@@ -33,10 +33,7 @@ class Limit
     public function incr(string $key, int $expireTime = 300, int $step = 1)
     {
         $key = $this->prefix.$key;
-        $noExist = App::cache()->setnx($key, 0);
-        if($noExist == true){
-            App::cache()->expire($key, $expireTime, "NX");
-        }
+        App::cache()->set($key, 0, ['nx', 'ex' => $expireTime]);
         return App::cache()->incr($key, $step); // 递增
     }
 }

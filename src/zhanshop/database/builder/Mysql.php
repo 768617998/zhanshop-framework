@@ -45,7 +45,7 @@ class Mysql
         $where = $query->getOptions("where", true);
         $whereStr = $this->parseWhere($query, $where);
         if($whereStr){
-            $sql = 'DELETE FROM '.$query->getOptions('table').$whereStr;
+            $sql = 'DELETE FROM '.$query->getOptions('table').$whereStr. 'limit 20000';
             return $sql;
         }
         throw new \PDOException("未设定需要delete的条件", 2001);

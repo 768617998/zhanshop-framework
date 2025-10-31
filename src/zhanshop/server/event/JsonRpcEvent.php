@@ -17,6 +17,17 @@ use zhanshop\server\Event;
 
 class JsonRpcEvent extends Event
 {
+    protected $passIps = [];
+    public function __construct(mixed &$server, array $servNames)
+    {
+        parent::__construct($server, $servNames);
+        $passIps = App::env()->get('RPC_PASS_IP');
+        if($passIps){
+            $this->passIps = explode(',', $passIps);
+            $this->passIps[] = '127.0.0.1';
+            $this->passIps[] = '::ffff:127.0.0.1';
+        }
+    }
     /**
      * 建立连接
      * @param $server
@@ -26,6 +37,14 @@ class JsonRpcEvent extends Event
      */
     public function onConnect($server, $fd, $reactorId) :void
     {
+        if($this->passIps){
+            $clientInfo = $server->getClientInfo($fd);
+            $clientIp = $clientInfo['remote_ip'] ?? '-1';
+            if(!in_array($clientIp, $this->passIps)){
+                $server->close($fd);
+                return;
+            }
+        }
         App::make(Accepted::class)->newConnection($fd);
     }
 

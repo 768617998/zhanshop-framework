@@ -73,11 +73,7 @@ class WebHandle
              * @$passable request请求对象
              */
             return function ($request) use ($stack, $pipe) {
-                try {
-                    return $pipe($request, $stack);
-                } catch (\Throwable $e) {
-                    App::error()->setError($e->getMessage(), $e->getCode());
-                }
+                return $pipe($request, $stack);
             };
         };
     }
