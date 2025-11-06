@@ -288,12 +288,11 @@ class Httpclient
         if($again && $outData['runtime'] < 3 && ($outData['code'] == false || $outData['code'] < 0 || $outData['code'] >= 500)){
             return $this->request($url, $method, $data, false);
         }
-
+        $this->debugLog($url,  $method, $data, $outData); // 记录debug日志
         $this->config['cookie'] = [];
         $this->config['header'] = [];
         $this->config['uploadfile'] = [];
         $this->config['uploaddata'] = [];
-        $this->debugLog($url,  $method, $data, $outData); // 记录debug日志
         return $outData;
     }
 
