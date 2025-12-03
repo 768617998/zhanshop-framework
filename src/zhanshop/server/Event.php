@@ -100,9 +100,11 @@ class Event
      */
     public function onStart($server) :void{
         App::config()->loadIni();
+        if($server->mode == 3){
+            echo PHP_EOL.'['.date('Y-m-d H:i:s').' *000] 监听'." ".$server->host.':'.$server->port.'/'.PHP_EOL;
+        }
         $msg = "启动工作进程数".($server->setting['worker_num']).', 任务工作进程'.($server->setting['task_worker_num']).', 环境'.swoole_version().' '.($_SERVER['APP_ENV'] ?? 'dev').'['.getmypid().']';
         Log::errorLog(SWOOLE_LOG_NOTICE, $msg);
-        //App::make(Robot::class)->send($msg);
     }
 
     /**

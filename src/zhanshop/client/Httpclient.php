@@ -364,7 +364,7 @@ class Httpclient
                 'header' => $this->config['header'],
                 'param' => $param,
                 'result' => $output
-            ]), Log::NOTICE, 'HTTP_CLIENT');
+            ],JSON_INVALID_UTF8_IGNORE), Log::NOTICE, 'HTTP_CLIENT');
         }
     }
 

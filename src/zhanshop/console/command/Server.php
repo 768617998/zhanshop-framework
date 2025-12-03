@@ -131,7 +131,14 @@ class Server extends Command
             mkdir(App::runtimePath().DIRECTORY_SEPARATOR.'server');
         }
     }
-
+    protected function getServerPid()
+    {
+        $pid = -1;
+        if(isset($this->config['settings']['pid_file']) && file_exists($this->config['settings']['pid_file'])){
+            $pid = file_get_contents($this->config['settings']['pid_file']);
+        }
+        return $pid;
+    }
     /**
      * 初始化
      * @param array $argv
@@ -358,7 +365,7 @@ class Server extends Command
             $conf['host'] = '['.$conf['host'].']';
         }
         if($conf['sock_type'] >= 512) $protocol .= 's';
-        if($this->config['settings']['daemonize'] == false && $echoListenMsg) echo '['.date('Y-m-d H:i:s').'] ###[listen]###'." ".$protocol.'://'.$conf['host'].':'.$conf['port'].'/'.PHP_EOL;
+        if($this->config['settings']['daemonize'] == false && $echoListenMsg && ($this->config["servers"][0]["mode"] ?? -1) != 3) echo '['.date('Y-m-d H:i:s').'] ###[listen]###'." ".$protocol.'://'.$conf['host'].':'.$conf['port'].'/'.PHP_EOL;
         return $protocol;
     }
 
@@ -368,7 +375,8 @@ class Server extends Command
      */
     public function start(){
         // 并且检查端口是否被占用
-        if($this->isRuning() && $this->isUsePort()){
+
+        if($this->getServerPid() != 1 && $this->isRuning() && $this->isUsePort()){
             return $this->output->output("程序已在运行...", 'info');
         }
         $server = null;

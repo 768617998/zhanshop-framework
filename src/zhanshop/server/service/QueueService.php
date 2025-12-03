@@ -8,9 +8,14 @@ abstract class QueueService
 {
     protected Channel $channel;
     protected $capacity = 500;
+    protected $timeout = 3000;
     public function __construct()
     {
         $this->channel = new Channel($this->capacity);
+
+        \Swoole\Timer::tick($this->timeout, function(){
+            if(!$this->isEmpty()) $this->consume();
+        });
     }
 
     /**
@@ -21,7 +26,10 @@ abstract class QueueService
      */
     public function push(mixed $data, float $timeout = 0.001)
     {
-        return $this->channel->push($data, $timeout);
+        $this->channel->push($data, $timeout);
+        if($this->isFull()){
+            $this->consume();
+        }
     }
 
     /**

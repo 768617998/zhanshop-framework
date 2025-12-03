@@ -72,6 +72,43 @@ class Log
     }
 
     /**
+     * 写入DEBUG日志
+     * @param $msg
+     * @return void
+     */
+    public function debug($msg)
+    {
+        $this->push($msg, self::DEBUG, "DEBUG");
+    }
+
+    /**
+     * 写入信息日志
+     * @param $msg
+     * @return void
+     */
+    public function info($msg){
+        $this->push($msg, self::INFO, "INFO");
+    }
+
+    /**
+     * 写入警告日志
+     * @param $msg
+     * @return void
+     */
+    public function warning($msg){
+        $this->push($msg, self::WARNING, "WARNING");
+    }
+
+    /**
+     * 写入错误日志
+     * @param $msg
+     * @return void
+     */
+    public function error($msg){
+        $this->push($msg, self::ERROR, "ERROR");
+    }
+
+    /**
      * 打印错误日志
      * @param int $level
      * @param string $msg
@@ -113,7 +150,7 @@ class Log
             'event' => $event,
             'body' => $msg
         ];
-        $body = json_encode($body, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE);
+        $body = json_encode($body, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE + JSON_INVALID_UTF8_IGNORE);
         echo $body."\r\n";
     }
 

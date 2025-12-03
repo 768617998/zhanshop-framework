@@ -384,7 +384,7 @@ declare (strict_types=1);\n\n";
         $data = App::make(Aes::class)->decrypt($code);
         $arr = [];
         if($data){
-            $arr = explode(',', $data);
+            $arr = explode(',', $data, 2);
             if(intval($arr[0]) + $expire < time()){
                 return null;
             }

@@ -44,8 +44,9 @@ class Sqlite
     public function delete(Query &$query){
         $where = $query->getOptions("where", true);
         $whereStr = $this->parseWhere($query, $where);
+        $limitStr = $this->parseLimit($query, $query->getOptions("limit", true));
         if($whereStr){
-            $sql = 'DELETE FROM '.$query->getOptions('table').$whereStr;
+            $sql = 'DELETE FROM '.$query->getOptions('table').$whereStr.$limitStr;
             return $sql;
         }
         throw new \PDOException("未设定需要delete的条件", 2001);

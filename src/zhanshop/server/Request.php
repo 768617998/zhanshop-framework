@@ -181,7 +181,7 @@ class Request
     private function getInputData(){
         $rawContent= $this->rawRequest->getContent();
         if($rawContent){
-            $rawContent = json_decode($rawContent, true);
+            $rawContent = json_decode($rawContent, true, 512, JSON_INVALID_UTF8_IGNORE);
             if($rawContent) $this->rawRequest->post = $rawContent;
         }
     }
