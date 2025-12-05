@@ -453,4 +453,39 @@ declare (strict_types=1);\n\n";
         }
         return  $sum % $modulus;
     }
+
+    /**
+     * 是否内网IPV4地址
+     * @param string $ip
+     * @return bool
+     */
+    public static function isPrivateIpv4(string $ip)
+    {
+        if(strpos($ip, '::ffff:') === 0){
+            $count = 1;
+            $ip = str_replace('::ffff:', '', $ip, $count);
+        }
+
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+            return false;
+        }
+
+        $ip = ip2long($ip);
+
+        $privateRanges = [
+            ['start' => ip2long('10.0.0.0'),     'end' => ip2long('10.255.255.255')],
+            ['start' => ip2long('172.16.0.0'),   'end' => ip2long('172.31.255.255')],
+            ['start' => ip2long('192.168.0.0'),  'end' => ip2long('192.168.255.255')],
+            ['start' => ip2long('127.0.0.0'),    'end' => ip2long('127.255.255.255')],
+            ['start' => ip2long('169.254.0.0'),  'end' => ip2long('169.254.255.255')],
+        ];
+
+        foreach ($privateRanges as $range) {
+            if ($ip >= $range['start'] && $ip <= $range['end']) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
