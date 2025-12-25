@@ -50,7 +50,8 @@ class WebHook
                     $data['mentioned_mobile_list'] = $mentionedMobileList;
                     break;
                 case 'markdown':
-                    $data['markdown']['content'] = $content;
+                    $data['msgtype'] = 'markdown_v2';
+                    $data['markdown_v2']['content'] = $content;
                     break;
                 case 'news':
                     $contents = [];

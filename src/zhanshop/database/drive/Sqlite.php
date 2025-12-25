@@ -25,6 +25,8 @@ class Sqlite
     {
 
         $pdoConfig = (new PDOConfig)->withDriver("sqlite")->withDbName($this->config['database']);
+        if(isset($this->config['username'])) $pdoConfig = $pdoConfig->withUsername($this->config['username']);
+        if(isset($this->config['password'])) $pdoConfig = $pdoConfig->withPassword($this->config['password']);
         return $pdoConfig;
     }
 }

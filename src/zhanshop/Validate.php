@@ -193,8 +193,9 @@ class Validate
     {
         if(!is_string($val)){
             $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的字符串';
+        }else{
+            $this->data[$key] = $val;
         }
-        $this->data[$key] = strval($val);
     }
 
     /**

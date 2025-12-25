@@ -1,6 +1,6 @@
 <?php
 // +----------------------------------------------------------------------
-// | hotel-search / Tencent.php    [ 2025/10/31 13:31 ]
+// | zhanshop-php / Tencent.php    [ 2025/10/31 13:31 ]
 // +----------------------------------------------------------------------
 // | Copyright (c) 2011~2025 zhangqiquan All rights reserved.
 // +----------------------------------------------------------------------
@@ -9,6 +9,8 @@
 declare (strict_types=1);
 
 namespace zhanshop\oos;
+
+use Swoole\Coroutine\Http\Client;
 
 class Tencent
 {
@@ -156,11 +158,6 @@ class Tencent
         $data["Policy"] = urlencode(json_encode($policy, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE));
         $data["Region"] = $this->config['region'];
         $data["Signature"] = $this->signature("POST", $host, $data);
-
-        if($this->isPhpFpm){
-            $curl = new Curl();
-            return $curl->request($url, "POST", http_build_query($data));
-        }
         return $this->request($url, "POST", $data);
     }
 

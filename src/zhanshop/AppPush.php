@@ -74,7 +74,7 @@ class AppPush
         $appKey = App::env()->get("JG_APPKEY", "");
         $appSecret = App::env()->get("JG_APPSECRET", "");
         $client = new Httpclient();
-        $result = $client->userPwd($appKey.':'.$appSecret)->setHeader('Content-Type', 'application/json')->request($this->url, 'POST', json_encode($this->sendData));
+        $result = $client->debug()->userPwd($appKey.':'.$appSecret)->setHeader('Content-Type', 'application/json')->request($this->url, 'POST', json_encode($this->sendData));
         return $result;
     }
 }

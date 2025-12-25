@@ -1031,7 +1031,36 @@ class Elasticsearch
 
         $httpClient->userPwd($this->user.':'.$this->pass);
         $httpClient->setHeader('Content-Type', 'application/json');
-        $ret = $httpClient->setTimeout($timeout)->enableIpv6()->request($url, "POST");
+        $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, "POST");
+        if($ret['code'] >= 400){
+            App::error()->setError($ret['body']);
+        }
+        return json_decode($ret['body'], true);
+    }
+
+    /**
+     * 使用原始参数搜索
+     * @param array $data
+     * @return array
+     */
+    public function search(array $data)
+    {
+        $url = $this->url.'/'.$this->options['index'].'/_search';
+
+        $httpClient = new Httpclient();
+        foreach ($this->options['proxy'] ?? [] as $v){
+            if($v['type'] == 1){
+                $httpClient->httpproxy($v['host'], $v['port'], $v['user'], $v['password']);
+            }else if($v['type'] == 2){
+                $httpClient->socks5($v['host'], $v['port'], $v['user'], $v['password']);
+            }
+        }
+
+        $this->options = [];
+
+        $httpClient->userPwd($this->user.':'.$this->pass);
+        $httpClient->setHeader('Content-Type', 'application/json');
+        $ret = $httpClient->setTimeout($this->timeout)->enableIpv6()->request($url, "POST", json_encode($data));
         if($ret['code'] >= 400){
             App::error()->setError($ret['body']);
         }
