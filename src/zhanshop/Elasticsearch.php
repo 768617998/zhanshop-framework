@@ -648,12 +648,12 @@ class Elasticsearch
      * @param string $sql
      * @return array
      */
-    public function query(string $sql){
+    public function query(string $sql, int $fetchSize = 0){
         //POST /_sql?format=txt
         $url = $this->url.'/_sql?format=json';
         // 字符串字段不支持排序
         $params = ['query' => $sql];
-
+        if($fetchSize > 0) $params['fetch_size'] = $fetchSize;
         $httpClient = new Httpclient();
         foreach ($this->options['proxy'] ?? [] as $v){
             if($v['type'] == 1){

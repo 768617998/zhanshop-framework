@@ -12,6 +12,7 @@ namespace zhanshop\server\event;
 
 use zhanshop\App;
 use zhanshop\console\command\server\Accepted;
+use zhanshop\Helper;
 use zhanshop\Log;
 use zhanshop\server\Event;
 
@@ -40,7 +41,7 @@ class JsonRpcEvent extends Event
         if($this->passIps){
             $clientInfo = $server->getClientInfo($fd);
             $clientIp = $clientInfo['remote_ip'] ?? '-1';
-            if(!in_array($clientIp, $this->passIps)){
+            if(Helper::isPrivateIpv4($clientIp) == false && !in_array($clientIp, $this->passIps)){
                 $server->close($fd);
                 return;
             }

@@ -228,7 +228,7 @@ class Httpclient
         if($this->config['enable_ipv6'] == false) return $domainName;
         try {
             if (!filter_var($domainName, FILTER_VALIDATE_IP)) {
-                $addr = \Swoole\Coroutine\System::gethostbyname($domainName,AF_INET6, 5);
+                $addr = \Swoole\Coroutine\System::dnsLookup($domainName,5, AF_INET6);
                 if ($addr) {
                     return $addr;
                 }elseif (strpos($domainName, '[') !== false){
@@ -272,7 +272,6 @@ class Httpclient
         }
 
         if($data) $client->setData($data);
-
         $client->execute($path);
         $outData = [
             'code' => $client->getStatusCode(),
@@ -364,7 +363,7 @@ class Httpclient
                 'header' => $this->config['header'],
                 'param' => $param,
                 'result' => $output
-            ],JSON_INVALID_UTF8_IGNORE), Log::NOTICE, 'HTTP_CLIENT');
+            ],JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE + JSON_INVALID_UTF8_IGNORE), Log::NOTICE, 'HTTP_CLIENT');
         }
     }
 

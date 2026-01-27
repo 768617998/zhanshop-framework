@@ -27,15 +27,19 @@ class Mysql
                 $sql .= ' (';
                 $num = 0;
                 foreach ($v as $kk => $vv){
-                    $key = 'zhanshop_'.str_replace('.', '__', $kk).$k;
-                    $query->setBind($key, $vv);
-                    if($num != 0) $sql .= ', ';
-                    $sql .= ':'.$key;
+                    if(is_object($vv)){
+                        if($num != 0) $sql .= ', ';
+                        $sql .= $vv->data;
+                    }else{
+                        $key = 'zhanshop_'.str_replace('.', '__', $kk).$k;
+                        $query->setBind($key, $vv);
+                        if($num != 0) $sql .= ', ';
+                        $sql .= ':'.$key;
+                    }
                     $num++;
                 }
                 $sql .= ')';
             }
-
             return $sql;
         }
         throw new \PDOException("未设定需要insert的数据", 2000);

@@ -488,4 +488,43 @@ declare (strict_types=1);\n\n";
 
         return false;
     }
+
+    /**
+     * 检查一个字符串是否存在url编码
+     * @param string $data
+     * @return bool
+     */
+    public static function isURLEncoded(string $data) {
+        // 检查是否存在可能的URL编码序列
+        return preg_match('/%[0-9A-Fa-f]{2}/', $data) > 0;
+    }
+
+    /**
+     * 将一个url出域名部分的参数进行url编码
+     * @param string $url
+     * @return string
+     */
+    public static function urlEncodeParam(string $url)
+    {
+        $parses = parse_url($url);
+        if(self::isURLEncoded($url) == false && isset($parses['path'])){
+            $path = '';
+            foreach (explode('/', ltrim($parses['path'], '/')) as $part) {
+                $code = rawurlencode($part);
+                if($part != $code){
+                    $path .= '/' . $code;
+                }else{
+                    $path .= '/' . $part;
+                }
+            }
+            $user = isset($parses['user']) ? $parses['user'] : '';
+            $pass = isset($parses['pass']) ? ':' . $parses['pass'] : '';
+            $auth = ($user || $pass) ? "$user$pass@" : '';
+            $parses['port'] = isset($parses['port']) ? ':' . $parses['port'] : '';
+            $url = $parses['scheme'].'://'.$auth.$parses['host'].$parses['port'].$path;
+            if(isset($parses['query'])) $url .= '?'.$parses['query'];
+            return $url;
+        }
+        return $url;
+    }
 }

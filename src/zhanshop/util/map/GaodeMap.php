@@ -8,7 +8,7 @@
 // +----------------------------------------------------------------------
 declare (strict_types=1);
 
-namespace zhanshop\util\ditu;
+namespace zhanshop\util\map;
 
 use zhanshop\client\Httpclient;
 

@@ -132,6 +132,9 @@ class Timer
         if($ruleTime < $currentTime + 3){
             // 下周执行的时间
             $ruleTime = strtotime('+7 day', $ruleTime);
+            if($ruleTime < $currentTime){
+                $ruleTime = strtotime('+7 day', $ruleTime);
+            }
         }
         $ms = ($ruleTime - $currentTime) * 1000;
         // 设置第一次执行的时间
