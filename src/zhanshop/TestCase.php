@@ -31,21 +31,19 @@ class TestCase extends \PHPUnit\Framework\TestCase
         $this->expectOutputString($msg);
     }
 
-    /**
-     * 运行测试
-     * @return mixed
-     */
+
     protected function runTest() : mixed
     {
         $data = null;
         if(extension_loaded('swoole')){
             \Swoole\Coroutine\run(function() use (&$data){
                 $data = $this->{$this->name()}();
+                \Swoole\Timer::clearAll();
             });
         }else{
             $data = $this->{$this->name()}();
         }
         return $data;
     }
-
+    
 }

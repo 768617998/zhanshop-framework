@@ -13,7 +13,7 @@ zhanshop-php 是一个高性能轻量级框架、集成多种协议如HTTP、JSO
 目前附件是只传七牛云  修改 config/sns.php 相应配置
 
 ## 环境要求
-php8.4 以上版本，需要redis扩展的支持， pdo mysql 扩展的支持，swoole6 以上的扩展支持
+php8.5 以上版本，需要redis扩展的支持， pdo mysql 扩展的支持，swoole6.2 以上的扩展支持
 
 
 ## 性能表现 （供参考和对比）

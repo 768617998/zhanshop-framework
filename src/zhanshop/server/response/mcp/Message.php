@@ -22,7 +22,8 @@ class Message
         'jsonrpc' => '2.0',
         'id' => 0,
         'result' => [
-            'content' => [],
+            'content' => [], // 给模型看的
+            'structuredContent' => [], // 给程序用的
             'isError' => false
         ],
     ];
@@ -51,6 +52,7 @@ class Message
     public function addText(mixed $data)
     {
         if(is_array($data) || is_object($data)){
+            $this->data['result']['structuredContent'] = $data;
             $data = json_encode($data);
         }
         $this->data['result']['content'][] = [

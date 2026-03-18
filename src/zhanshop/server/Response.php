@@ -224,11 +224,11 @@ class Response
      */
     protected function sendMcp()
     {
-        $this->rawResponse->status(417);
-        $this->rawResponse->header('Connection', 'close');
+        //$this->rawResponse->header('Connection', 'close');
         $this->rawResponse->header('Server', 'zhanshop');
         if(is_array($this->data) || is_object($this->data)){
-            return $this->rawResponse->end(json_encode($this->data));
+            $this->rawResponse->write("event: message\r\ndata: ".json_encode($this->data, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE)."\r\n\r\n");
+            $this->data = [];
         }
     }
 
@@ -241,7 +241,7 @@ class Response
     public function toSend($fd, $data, $partition = "\r\n")
     {
         if(is_array($data) || is_object($data)){
-            $data = json_encode($data, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE);
+            $data = json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         }
         try{
             return Server::$server->send($fd, $data.$partition);

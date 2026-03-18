@@ -10,6 +10,9 @@ declare (strict_types=1);
 
 namespace zhanshop\server\event;
 
+use app\exception\HttpException;
+use app\exception\McpException;
+use stdClass;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use zhanshop\App;
@@ -21,7 +24,7 @@ use zhanshop\server\route\Dispatch;
 
 class McpEvent
 {
-    protected $mcpVersion = '1.12.3';
+    protected $mcpVersion = '3.1.0';
     /**
      * 获取输入参数
      * @param Request $request
@@ -82,7 +85,7 @@ class McpEvent
     {
         $id = $request->header['mcp-input']['id'] ?? 0;
         $jsonrpc = $request->header['mcp-input']['jsonrpc'] ?? '2.0';
-        $protocolVersion = $request->header['mcp-input']['params']['protocolVersion'] ?? '2025-03-26';
+        $protocolVersion = $request->header['mcp-input']['params']['protocolVersion'] ?? '2025-11-25';
         $message = "event: message\r\n";
         $message .= 'data: {"jsonrpc":"'.$jsonrpc.'","id":'.$id.',"result":{"protocolVersion":"'.$protocolVersion.'","capabilities":{"experimental":{},"tools":{"listChanged":false}},"serverInfo":{"name":"zhanshop-mcp","version":"'.$this->mcpVersion.'"}}}'."\r\n\r\n";
         $session = ($request->server['remote_addr'] ?? '127.0.0.1').json_encode($request->header['mcp-input']).microtime(true);
@@ -238,7 +241,51 @@ class McpEvent
         $uris = explode(':', ($request->header['mcp-input']['params']['name'] ?? ''));
         $request->server['request_uri'] = '/'.($uris[0] ?? '');
         $request->server['request_method'] = $uris[1] ?? 'POST';
-        App::make(WebHandle::class)->httpDispatch($servName, $request, $response, Server::HTTP_MCP);
+        $this->httpDispatch($servName, $request, $response, Server::HTTP_MCP);
+    }
+
+    /**
+     * http调度
+     * @param $appName
+     * @param $request
+     * @param $response
+     * @param int $protocol
+     * @return void
+     */
+    private function httpDispatch($appName, $request, $response, int $protocol = Server::HTTP)
+    {
+        $httpRequest = new \zhanshop\server\Request($protocol, $request);
+        $httpResponse = new \zhanshop\server\Response($protocol, $response);
+        $httpResponse->setcode(200);
+        $httpRequest->setData('__resp__', $httpResponse);
+        try {
+            $dispatch = App::make(Dispatch::class);
+
+            $route = $dispatch->getRoute($appName, $request->server['request_uri'] ?? '', $request->server['request_method'] ?? "GET");
+            $httpRequest->setHandler($route['handler']);
+            foreach ($route['extra'] as $name => $val){
+                $httpRequest->setData($name, $val);
+            }
+            $httpRequest->setData('_app', $appName);
+            App::make(WebHandle::class)->middleware($route['middleware'], function ($req){
+                list($controller, $action) = $req->getHandler();
+                $resp = $req->getData('__resp__');
+                $data = App::make($controller)->$action($req, $resp);
+                $resp->setData($data);
+                return $resp;
+            })($httpRequest);
+        }catch (\Throwable $error){
+            $data = App::make(McpException::class)->handle($httpRequest, $error);
+            $httpResponse->setcode(intval($error->getCode()));
+            $httpResponse->setmsg($error->getMessage());
+            $httpResponse->setdata($data);
+        }
+
+        try {
+            $httpResponse->send();
+        }catch (\Throwable $error){}
+
+        unset($httpResponse, $httpRequest);
     }
 
     /**
@@ -317,7 +364,6 @@ class McpEvent
      */
     protected function apiSchema(string $appName, string $version, string $uri, string $method)
     {
-
         $route = App::make(Dispatch::class)->routes()[$appName][$version]['/'.$uri][$method] ?? App::error()->setError($uri.'路由未注册', Error::NOT_FOUND);;
         $handler = $route['handler'];
         $class = new \ReflectionClass($handler[0]);
@@ -349,6 +395,9 @@ class McpEvent
                 'type' => $v['type'],
             ];
         }
+
+        if($outputSchema['properties'] == false) $outputSchema['properties'] = new StdClass();
+
         $apiSchema = [
             'name' => $version.'/'.$uri.':'.$method,
             'title' => $apiDoc['api']['title'],

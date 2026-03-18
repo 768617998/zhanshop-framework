@@ -42,6 +42,23 @@ class BaiduMap
     }
 
     /**
+     * 地址关键词检索
+     * @param string $query
+     * @param string $cicy
+     * @param string $type
+     * @return array
+     */
+    public function regionQuery(string $query, string $cicy, string $type)
+    {
+        $url = 'https://api.map.baidu.com/place/v3/region?query='.urlencode($query).'&type='.urlencode($type).'&region='.urlencode($cicy).'&scope=2&page_size=20&ak='.$this->config['app_key'];
+        $client = new Httpclient();
+        $result = $client->debug()->request($url);
+        $body = json_decode($result['body'] ?? "", true);
+        if($body) $result['body'] = $body;
+        return $result;
+    }
+
+    /**
      * 获取地标 有相似度对比
      * @param string $address
      * @param string $retCoordtype

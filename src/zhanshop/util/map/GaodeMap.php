@@ -42,6 +42,23 @@ class GaodeMap
     }
 
     /**
+     * 地址搜索
+     * @param string $query
+     * @param string $cicy
+     * @param string $type
+     * @return mixed
+     */
+    public function regionQuery(string $query, string $cicy, string $type)
+    {
+        $client = new Httpclient();
+        $url = 'https://restapi.amap.com/v5/place/text?keywords='.urlencode($query).'&types='.$type.'&region='.urlencode($cicy).'&key='.$this->config["app_key"];
+        $result = $client->debug()->request($url);
+        $body = json_decode($result['body'] ?? "", true);
+        if($body) $result['body'] = $body;
+        return $result;
+    }
+
+    /**
      * 经纬度转省市区
      * @param string $lng 精度
      * @param string $lat 维度
