@@ -52,12 +52,12 @@ class Refund
         $params = $this->config->signParams($data, 'refundalipay');
 
         $httpClient = new Httpclient();
-        $resp = $httpClient->request($this->config->get('gateway'), 'POST', http_build_query($params));
+        $resp = $httpClient->debug()->request($this->config->get('gateway'), 'POST', http_build_query($params));
         $json = json_decode($resp['body'], true);
         if($json == false){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
         }
-        return current($json);
+        return is_array($json) ? (current($json) ?: []) : [];
     }
 }

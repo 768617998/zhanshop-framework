@@ -10,6 +10,7 @@ class ShellCommand
     {
         $cmd = $command;
         $error = App::runtimePath().'/process/'.md5($cmd).'.log';
+        if (!is_dir(dirname($error))) @mkdir(dirname($error), 0755, true);
         $descriptorspec = array(
             0 => array("pipe", "r"),
             1 => array("pipe", "w"),
@@ -56,6 +57,7 @@ class ShellCommand
     {
         $cmd = $command;
         $error = App::runtimePath().'/process/'.md5($cmd).'.log';
+        if (!is_dir(dirname($error))) @mkdir(dirname($error), 0755, true);
         $descriptorspec = array(
             0 => array("pipe", "r"),
             1 => array("pipe", "w"),

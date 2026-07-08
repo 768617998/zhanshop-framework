@@ -26,6 +26,8 @@ class PDOConnectionPool
 
     protected $maxConnections = 20;
 
+    protected bool $enableDebugSql = false;
+
     public function __construct(array $config){
         $type = $config['type'] ?? 'mysql';
         if(strpos($type, '\\') === false) $type = '\\zhanshop\\database\\drive\\'.ucfirst($type);
@@ -35,6 +37,7 @@ class PDOConnectionPool
         //$this->pdoConfig = $pdoConfig;
         $this->maxConnections = $config['pool']['max_connections'] ?? 20;
         $this->timeoutPool = $config['pool']['timeout'] ?? 0.1;
+        $this->enableDebugSql = App::config()->get('database.debug_sql', false);
         $this->pool = new PDOPool($this->pdoConfig, $this->maxConnections);
     }
 
@@ -68,11 +71,13 @@ class PDOConnectionPool
             throw new RuntimeException('Execute failed');
         }
         $result = $statement->fetchAll();
-        ob_start();
-        $statement->debugDumpParams();
-        $debugInfo = ob_get_clean();
+        if ($this->enableDebugSql) {
+            ob_start();
+            $statement->debugDumpParams();
+            $debugInfo = ob_get_clean();
+            $this->debugSql($debugInfo, $startTime);
+        }
         $statement->closeCursor();
-        $this->debugSql($debugInfo, $startTime);
         return $result;
     }
 
@@ -98,11 +103,13 @@ class PDOConnectionPool
         }else{
             $result = $statement->rowCount();
         }
-        ob_start();
-        $statement->debugDumpParams();
-        $debugInfo = ob_get_clean();
+        if ($this->enableDebugSql) {
+            ob_start();
+            $statement->debugDumpParams();
+            $debugInfo = ob_get_clean();
+            $this->debugSql($debugInfo, $startTime);
+        }
         $statement->closeCursor();
-        $this->debugSql($debugInfo, $startTime);
         return $result;
     }
 
@@ -132,30 +139,6 @@ class PDOConnectionPool
                 }else{
                     throw new \Exception($e->getMessage().',sql:'.$sql.','.json_encode($bind, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE), (int)$e->getCode());
                 }
-            }
-        }
-        return $result;
-    }
-
-    public function multiQuery(array $sqls, mixed $pdo = null, bool $isRetry = false)
-    {
-        if($pdo == false) $pdo = $this->getPDO();
-
-        $result = [];
-        $error = null;
-        foreach($sqls as $sql){
-            try {
-                $result = array_merge($result, $this->_query($pdo, $sql));
-            }catch (\Throwable $e){
-                $error = $e;
-            }
-        }
-        $this->recoveryPDO($pdo); // 回收
-        if($isRetry !== null){
-            if($isRetry === false){
-                return $this->multiQuery($sqls, true);
-            }else if($error){
-                throw new \Exception($error->getMessage(), (int)$error->getCode());
             }
         }
         return $result;
@@ -275,6 +258,7 @@ class PDOConnectionPool
 
     protected function debugSql(string $debugDump, float $startTime)
     {
+        if (!$this->enableDebugSql) return;
         try {
             $arr = explode("\n", $debugDump);
             $sql = $arr[1];

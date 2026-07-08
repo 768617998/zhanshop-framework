@@ -50,6 +50,7 @@ class Error extends \Error
      * @param string $errline
      */
     public static function errorHandler(int $errno,  $errstr,  $errfile,  $errline){
+        if (!(error_reporting() & $errno)) return;
         throw new \Exception($errstr.' '.$errfile.':'.$errline.PHP_EOL, $errno);
     }
 

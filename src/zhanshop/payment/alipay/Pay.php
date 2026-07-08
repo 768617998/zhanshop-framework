@@ -128,13 +128,70 @@ class Pay
 
         $params = $this->config->signParams($data, 'nativealipay');
         $httpClient = new Httpclient();
-        $resp = $httpClient->request($this->config->get('gateway'), 'POST', http_build_query($params));
+        $resp = $httpClient->debug()->request($this->config->get('gateway'), 'POST', http_build_query($params));
         $json = json_decode($resp['body'], true);
         if($json == false){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
         }
-        return current($json);
+        return is_array($json) ? (current($json) ?: []) : [];
+    }
+
+    /**
+     * 付款码支付(商户扫用户)
+     * alipay.trade.pay | scene=bar_code | 同步返回结果
+     *
+     * 返回码处理逻辑:
+     *   10000 → 支付成功
+     *   10003 → 等待用户输密码/系统处理中, 需轮询 alipay.trade.query (建议间隔3秒,最多5次)
+     *   20000 → 服务不可用, 轮询查询确认
+     *   40004 → 业务处理失败, 明确失败
+     *
+     * @param string $orderId  订单号
+     * @param float  $amount   支付金额(元)
+     * @param string $authCode 用户付款码(扫码枪读取, 25~30开头, 16~24位数字)
+     * @param array  $attach   回调参数
+     * @param array  $other    其他参数(subject/store_id/terminal_id/operator_id等)
+     * @return array ['code'=>'10000','msg'=>'Success','trade_no'=>'...',...]
+     * @see https://opendocs.alipay.com/open/02bzsb
+     */
+    public function codepay(string $orderId, float $amount, string $authCode, array $attach, $other = [])
+    {
+        $data = [
+            'method'       => 'alipay.trade.pay',
+            'subject'      => $other['subject'] ?? ($orderId . '订单'),
+            'out_trade_no' => $orderId,
+            'total_amount' => $amount,
+            'scene'        => 'bar_code',
+            'auth_code'    => $authCode,
+            'product_code' => 'FACE_TO_FACE_PAYMENT',
+            'passback_params' => json_encode($attach),
+        ];
+
+        // 可选的店铺/终端/操作员信息
+        foreach (['store_id', 'terminal_id', 'operator_id', 'timeout_express', 'body', 'goods_detail'] as $optKey) {
+            if (isset($other[$optKey])) {
+                $data[$optKey] = $other[$optKey];
+            }
+        }
+
+        // 合并其他覆盖参数
+        $reservedKeys = ['method', 'out_trade_no', 'total_amount', 'scene', 'auth_code', 'product_code', 'passback_params', 'store_id', 'terminal_id', 'operator_id', 'timeout_express', 'body', 'goods_detail'];
+        foreach ($other as $k => $v) {
+            if (!in_array($k, $reservedKeys, true)) {
+                $data[$k] = $v;
+            }
+        }
+
+        $params = $this->config->signParams($data, 'appalipay');
+        $httpClient = new Httpclient();
+        $resp = $httpClient->debug()->request($this->config->get('gateway'), 'POST', http_build_query($params));
+        $json = json_decode($resp['body'], true);
+        if ($json == false) {
+            $body = iconv("GBK", "UTF-8", $resp['body']);
+            $json = json_decode($body, true);
+        }
+        return $json['alipay_trade_pay_response'] ?? $json;
     }
 
     /**
@@ -164,11 +221,11 @@ class Pay
         $params = $this->config->signParams($data, 'appalipay');
         $params = http_build_query($params);
         $httpClient = new Httpclient();
-        $resp = $httpClient->request($this->config->get('gateway'), 'POST', $params);
+        $resp = $httpClient->debug()->request($this->config->get('gateway'), 'POST', $params);
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
-            return current($json);
+            return is_array($json) ? (current($json) ?: []) : [];
         }
         App::error()->setError("签约扣款失败返回的是空");
     }

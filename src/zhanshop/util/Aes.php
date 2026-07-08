@@ -6,55 +6,50 @@ use zhanshop\App;
 class Aes
 {
     /**
-     * var string $method 加解密方法，可通过openssl_get_cipher_methods()获得
+     * var string $method 加解密方法
      */
-    protected $method = 'AES-256-ECB';
+    protected $method = 'AES-256-CBC';
 
     protected $commonKey = 'bxV8lFZs8oqmREMz9^kacHn%y0zE*KnNGwp*dt!JV7olxwKz6d1NjLH9TQSBqEZhvF4C$vzC*6F^oonTi9$Xt4Tt35QAffigBiN';
 
     /**
-     * var string $iv 加解密的向量，有些方法需要设置比如CBC
-     */
-    protected $iv = '';
-
-    /**
-     * var string $options （不知道怎么解释，目前设置为0没什么问题）
+     * var int $options
      */
     protected $options = 0;
 
     /**
      * 构造器
-     * Aes constructor.
+     * 要求 APP_KEY 必须配置且长度满足 AES-256 要求(32字节)，
+     * 否则抛出异常拒绝启动，防止弱密钥或默认密钥导致 token 可被伪造。
      */
     public function __construct(){
         $appKey = App::config()->get('app.app_key');
-        if($appKey) $this->commonKey = $appKey;
+        if(!$appKey || strlen($appKey) < 32){
+            throw new \RuntimeException('APP_KEY 未配置或长度不足32字节，请在 .env 中设置 APP_KEY（生成方式: openssl rand -hex 32）');
+        }
+        $this->commonKey = $appKey;
     }
 
     /**
-     * @加密方法，对数据进行加密，返回加密后的数据
-     *
+     * 加密
      * @param string $data 要加密的数据
-     *
      * @return string
-     *
      */
     public function encrypt($data)
     {
-        return openssl_encrypt(openssl_encrypt($data, $this->method, $this->commonKey, $this->options, $this->iv), $this->method, $this->commonKey, $this->options, $this->iv);
+        $iv = openssl_random_pseudo_bytes(16);
+        return base64_encode($iv . openssl_encrypt($data, $this->method, $this->commonKey, $this->options, $iv));
     }
 
     /**
-     * @解密方法，对数据进行解密，返回解密后的数据
-     *
+     * 解密
      * @param string $data 要解密的数据
-     *
      * @return string
-     *
      */
     public function decrypt($data)
     {
-        return openssl_decrypt(openssl_decrypt($data, $this->method, $this->commonKey, $this->options, $this->iv), $this->method, $this->commonKey, $this->options, $this->iv);
+        $decoded = base64_decode($data);
+        $iv = substr($decoded, 0, 16);
+        return openssl_decrypt(substr($decoded, 16), $this->method, $this->commonKey, $this->options, $iv);
     }
 }
-

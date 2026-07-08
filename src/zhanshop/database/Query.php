@@ -129,6 +129,10 @@ class Query
     }
 
     public function order(string $order){
+        $parts = explode(' ', $order, 2);
+        if(!in_array(strtolower($parts[1] ?? ''), ['asc', 'desc'])){
+            App::error()->setError('order格式错误');
+        }
         $this->options['order'][] = $order;
         return $this;
     }
@@ -149,21 +153,11 @@ class Query
     }
 
     public function whereIn(string $key, array $array){
-        foreach($array as $k => $v){
-            if(is_string($v)){
-                $array[$k] = addslashes($v);
-            }
-        }
         $this->options['where']['In'][$key] = $array;
         return $this;
     }
 
     public function whereNotIn(string $key, array $array){
-        foreach($array as $k => $v){
-            if(is_string($v)){
-                $array[$k] = addslashes($v);
-            }
-        }
         $this->options['where']['NotIn'][$key] = $array;
         return $this;
     }
@@ -283,9 +277,13 @@ class Query
 
     public function finder(int $page, int $limit = 20, mixed $pdo = null){
         $offset = ($page - 1) * $limit;
+        $savedOptions = $this->options;
+        $list = $this->limit($offset, $limit)->select($pdo);
+        $total = $this->count('*', $pdo);
+        $this->options = $savedOptions;
         return [
-            'list' => $this->limit($offset, $limit)->select($pdo),
-            'total' => $this->count('*', $pdo),
+            'list' => $list,
+            'total' => $total,
         ];
     }
 
@@ -329,12 +327,6 @@ class Query
         }
         $pdoPoll = App::make(DbManager::class)->get($this->connection);
         return $pdoPoll->query($sql, $bind, $pdo);
-    }
-
-    public function multiQuery(array $sqls, mixed $pdo = null)
-    {
-        $pdoPoll = App::make(DbManager::class)->get($this->connection);
-        return $pdoPoll->multiQuery($sqls, $pdo);
     }
 
     public function execute(string $sql, array $bind = [], bool $lastID = false, mixed $pdo = null){

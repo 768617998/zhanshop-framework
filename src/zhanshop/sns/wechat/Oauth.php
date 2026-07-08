@@ -38,4 +38,17 @@ class Oauth
         ]));
         return json_decode($result['body'] ?? '', true);
     }
+
+    /**
+     * 小程序登录凭证校验
+     * @param string $jsCode
+     * @return array|mixed|string[]|null
+     */
+    public function getJscode2Session(string $jsCode)
+    {
+        $url = 'https://api.weixin.qq.com/sns/jscode2session?appid='.$this->appId.'&secret='.$this->secret.'&js_code='.$jsCode.'&grant_type=GRANT_TYPE';
+        $client = new Httpclient();
+        $result = $client->debug()->setHeader('Content-Type', 'application/json')->setTimeout(30000)->request($url, "GET");
+        return json_decode($result['body'] ?? '', true);
+    }
 }

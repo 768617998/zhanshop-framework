@@ -43,7 +43,7 @@ class Query
                 'POST', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $config->get('privatekey'));
         $client->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
-        $payResp = $client->request($url, 'GET', json_encode($data));
+        $payResp = $client->debug()->request($url, 'GET', json_encode($data));
         return json_decode($payResp['body'], true);
     }
 
@@ -75,7 +75,7 @@ class Query
                 'GET', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $config->get('privatekey'));
         $client->setHeader('Authorization', $config->authorization($config->get('mchid'), $nonce, $signature,$timestamp, $config->get('serialnum')));
-        $payResp = $client->request($url, 'POST', json_encode($data));
+        $payResp = $client->debug()->request($url, 'POST', json_encode($data));
         return json_decode($payResp['body'], true);
     }
 }

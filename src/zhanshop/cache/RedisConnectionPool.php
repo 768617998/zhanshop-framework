@@ -11,6 +11,7 @@ declare (strict_types=1);
 namespace zhanshop\cache;
 use Swoole\Database\RedisConfig;
 use Swoole\Database\RedisPool;
+use zhanshop\App;
 use zhanshop\Helper;
 
 /**
@@ -61,7 +62,10 @@ class RedisConnectionPool
                     $redis = $this->getRedis();
                     $call($redis);
                     $this->recoveryRedis($redis);
-                }catch (\Throwable $err){}
+                    return;
+                }catch (\Throwable $err){
+                    App::log()->error('Redis callback retry failed: '.$err->getMessage().' '.$err->getFile().':'.$err->getLine());
+                }
             }
             throw new \Exception($e->getMessage().' '.$e->getFile().':'.$e->getLine(), $e->getCode());
         }
@@ -96,14 +100,17 @@ class RedisConnectionPool
             return $data;
         }catch (\Throwable $e){
             $this->recoveryRedis($redis);
-            if(strpos($e->getMessage(), 'away') || strpos($e->getMessage(), 'error')){
+            // 仅连接断开类错误才重试，避免业务逻辑错误触发误重连
+            if(strpos($e->getMessage(), 'away')){
                 try{
                     $this->reconnect();
                     $redis = $this->getRedis();
                     $data = $redis->$name(...$arguments);
                     $this->recoveryRedis($redis);
                     return $data;
-                }catch (\Throwable $err){}
+                }catch (\Throwable $err){
+                    App::log()->error('Redis retry failed: '.$err->getMessage().' '.$err->getFile().':'.$err->getLine());
+                }
             }
             throw new \Exception($e->getMessage(), $e->getCode());
         }
@@ -115,8 +122,14 @@ class RedisConnectionPool
      */
     public function reconnect(){
         $this->pool->close();
+
+        $hostname = Helper::gethostbyname($this->config['host']);
+        if (filter_var($hostname, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            $hostname = '['.$hostname.']';
+        }
+
         $this->pool = new RedisPool((new RedisConfig)
-            ->withHost($this->config['host'])
+            ->withHost($hostname)
             ->withPort((int)$this->config['port'])
             ->withAuth($this->config['password'] ?? '')
             ->withDbIndex((int)$this->config['select'] ?? 0)

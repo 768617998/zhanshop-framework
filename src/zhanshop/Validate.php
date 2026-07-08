@@ -32,7 +32,7 @@ class Validate
                 $function = explode(':', $vv);
                 $method = $function[0];
                 unset($function[0]);
-                $args = array_merge([$k, $data[$k] ?? ''], array_filter($function));
+                $args = array_merge([$k, $data[$k] ?? ''], array_filter($function, 'strlen'));
                 //echo $method.'('.implode(',', $args).')'.PHP_EOL;
                 //print_r($args);
                 $this->data[$k] = $data[$k] ?? null;
@@ -112,7 +112,7 @@ class Validate
      * @return void
      */
     protected function between(string $key, mixed $val, int $min = 0, int $max = 0){
-        if($val != null && $min && $max && !($val >= $min && $val <= $max)){
+        if($val != null && ($min || $max) && !($val >= $min && $val <= $max)){
             $this->errors[] = ($this->message[$key] ?? $key).'的值必须在'.$min.'至'.$max.'之间';
         }
     }
@@ -247,7 +247,7 @@ class Validate
      * @return bool
      */
     protected function date(string $key ,mixed $val){
-        if(strtotime($val) === false) $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的日期';
+        if($val != null && $val !== '' && strtotime($val) === false) $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的日期';
         $this->data[$key] = $val;
     }
     /**
@@ -257,7 +257,7 @@ class Validate
      * @return bool
      */
     protected function time(string $key ,mixed $val){
-        if(strtotime($val) === false) $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的时间';
+        if($val != null && $val !== '' && strtotime($val) === false) $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的时间';
         $this->data[$key] = $val;
     }
     /**
@@ -268,7 +268,7 @@ class Validate
      * @return void
      */
     protected function func(string $key , mixed $val, string $func = ''){
-        if($func && $func($val) == false){
+        if($func && $func($val) === false){
             $this->errors[] = ($this->message[$key] ?? $key).'的值不符合要求';
         }
     }
@@ -284,7 +284,7 @@ class Validate
         $val = (string) $val;
         $minLength = (int) $minLength;
         $maxLength = (int) $maxLength;
-        if($minLength && $maxLength){
+        if($minLength || $maxLength){
             $error = '';
             $strlen = mb_strlen($val);
             if($strlen <  $minLength){

@@ -349,11 +349,16 @@ declare (strict_types=1);\n\n";
     public static function gethostbyname(string $domainName, int $timeout = 3)
     {
         if(!filter_var($domainName, FILTER_VALIDATE_IP)){
-            $addr = \Swoole\Coroutine\System::gethostbyname($domainName,AF_INET, $timeout);
-            if($addr) return $addr;
+            if (\Swoole\Coroutine::getCid() > 0) {
+                $addr = \Swoole\Coroutine\System::gethostbyname($domainName, AF_INET, $timeout);
+                if($addr) return $addr;
 
-            $addr = \Swoole\Coroutine\System::gethostbyname($domainName,AF_INET6, $timeout);
-            if($addr) return $addr;
+                $addr = \Swoole\Coroutine\System::gethostbyname($domainName, AF_INET6, $timeout);
+                if($addr) return $addr;
+            } else {
+                $addr = gethostbyname($domainName);
+                if($addr && $addr !== $domainName) return $addr;
+            }
         }
         return $domainName;
     }

@@ -49,8 +49,8 @@ class WebHandle
             }
             $dispatch->setApp($v);
             $dispatch->setVersion('v1');
-            App::route()->rule('GET', '/api.doc', [ApiDoc::class, 'call']);
-            App::route()->rule('POST', '/api.doc', [ApiDoc::class, 'call']);
+            App::route()->rule('GET', '/api.doc', [ApiDoc::class, 'call'])->extra(["url", "id"]);
+            App::route()->rule('POST', '/api.doc', [ApiDoc::class, 'call'])->extra(["url", "id"]);
         }
     }
 

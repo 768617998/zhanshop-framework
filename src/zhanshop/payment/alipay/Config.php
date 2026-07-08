@@ -216,11 +216,11 @@ class Config
         $params = $this->signParams($data, 'query');
 
         $httpclient = new Httpclient();
-        $resp = $httpclient->request($this->get('gateway'), 'POST', http_build_query($params));
+        $resp = $httpclient->debug()->request($this->get('gateway'), 'POST', http_build_query($params));
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
-            return current($json);
+            return is_array($json) ? (current($json) ?: []) : [];
         }
         App::error()->setError("更新签约协议失败");
     }

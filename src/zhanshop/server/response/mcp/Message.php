@@ -141,6 +141,10 @@ class Message
         }
         $this->data['result']['content'] = [];
         $data = "event: message\r\ndata: ".$data."\r\n\r\n";
+
+
+        var_dump($data);
+
         $this->response->rawResponse()->write($data);
     }
 }

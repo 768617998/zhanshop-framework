@@ -61,7 +61,7 @@ class Config
     {
         $httpClient = new Httpclient();
         $httpClient->setHeader("Content-Type", "application/json; charset=utf-8");
-        $resp = $httpClient->request($this->config['gateway'], "POST", json_encode(['receipt-data' => $receipt, 'password' => $this->config['password']]));
+        $resp = $httpClient->debug()->request($this->config['gateway'], "POST", json_encode(['receipt-data' => $receipt, 'password' => $this->config['password']]));
         if($resp['body']){
             $body = json_decode($resp['body'], true);
             if($body) return $body;

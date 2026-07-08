@@ -68,7 +68,7 @@ class Refund
                 'POST', $path, $timestamp, $nonce, json_encode($data)
             ])."\n", $this->config->get('privatekey'));
         $client->setHeader('Authorization', $this->config->authorization($this->config->get('mchid'), $nonce, $signature,$timestamp, $this->config->get('serialnum')));
-        $payResp = $client->request($url, 'POST', json_encode($data));
+        $payResp = $client->debug()->request($url, 'POST', json_encode($data));
         if($payResp['code'] != 200){
             App::error()->setError($payResp['body']);
         }

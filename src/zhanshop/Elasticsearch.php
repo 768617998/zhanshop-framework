@@ -739,7 +739,11 @@ class Elasticsearch
             if(is_int($k)){
                 $source .= 'ctx._source.'.$v.';';
             }else{
-                $source .= "ctx._source.{$k} = '".$v."';";
+                if(is_int($v) || is_float($v)){
+                    $source .= "ctx._source.{$k} = ".$v.";";
+                }else{
+                    $source .= "ctx._source.{$k} = '".$v."';";
+                }
             }
         }
         $source = rtrim($source, ';');

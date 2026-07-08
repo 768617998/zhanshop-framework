@@ -51,12 +51,12 @@ class Query
 
         $params = $config->signParams($data, 'query');
         $httpClient = new Httpclient();
-        $resp = $httpClient->request($config->get('gateway'), 'POST', http_build_query($params));
+        $resp = $httpClient->debug()->request($config->get('gateway'), 'POST', http_build_query($params));
         $json = json_decode($resp['body'], true);
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
-            return current($json);
+            return is_array($json) ? (current($json) ?: []) : [];
         }
         App::error()->setError("订单查询失败");
     }
@@ -80,11 +80,11 @@ class Query
 
         $params = $config->signParams($data, 'query');
         $httpClient = new Httpclient();
-        $resp = $httpClient->request($config->get('gateway'), 'POST', http_build_query($params));
+        $resp = $httpClient->debug()->request($config->get('gateway'), 'POST', http_build_query($params));
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
-            return current($json);
+            return is_array($json) ? (current($json) ?: []) : [];
         }
         App::error()->setError("退款订单查询失败");
     }
@@ -110,11 +110,11 @@ class Query
 
         $params = $config->signParams($data, 'query');
         $httpClient = new Httpclient();
-        $resp = $httpClient->request($config->get('gateway'), 'POST', http_build_query($params));
+        $resp = $httpClient->debug()->request($config->get('gateway'), 'POST', http_build_query($params));
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
-            return current($json);
+            return is_array($json) ? (current($json) ?: []) : [];
         }
         App::error()->setError("对账单查询失败");
     }
@@ -140,11 +140,11 @@ class Query
         if($other) $data = array_merge($data, $other);
         $params = $this->config->signParams($data, 'query');
         $httpClient = new Httpclient();
-        $resp = $httpClient->request($config->get('gateway'), 'POST', http_build_query($params));
+        $resp = $httpClient->debug()->request($config->get('gateway'), 'POST', http_build_query($params));
         if($resp['body']){
             $body = iconv("GBK", "UTF-8", $resp['body']);
             $json = json_decode($body, true);
-            return current($json);
+            return is_array($json) ? (current($json) ?: []) : [];
         }
         App::error()->setError("代扣协议查询失败");
     }

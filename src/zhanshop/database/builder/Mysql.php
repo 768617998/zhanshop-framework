@@ -212,8 +212,13 @@ class Mysql
             if($whereStr){
                 $whereStr .= ' AND ';
             }
-            $v = "'".implode("', '", $v)."'";
-            $whereStr .= $k.' IN ('.$v.')';
+            $placeholders = [];
+            foreach ($v as $i => $val){
+                $bindKey = 'ZhanShopBind_WhereIn_'.str_replace('.', '__', $k).'_'.$i;
+                $placeholders[] = ':'.$bindKey;
+                $query->setBind($bindKey, $val);
+            }
+            $whereStr .= $k.' IN ('.implode(', ', $placeholders).')';
         }
 
         $notins = $where['NotIn'] ?? [];
@@ -221,8 +226,13 @@ class Mysql
             if($whereStr){
                 $whereStr .= ' AND ';
             }
-            $v = "'".implode("', '", $v)."'";
-            $whereStr .= $k.' NOT IN ('.$v.')';
+            $placeholders = [];
+            foreach ($v as $i => $val){
+                $bindKey = 'ZhanShopBind_WhereNotIn_'.str_replace('.', '__', $k).'_'.$i;
+                $placeholders[] = ':'.$bindKey;
+                $query->setBind($bindKey, $val);
+            }
+            $whereStr .= $k.' NOT IN ('.implode(', ', $placeholders).')';
         }
 
         $raws = $where['RAW'] ?? [];

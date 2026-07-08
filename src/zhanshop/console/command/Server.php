@@ -113,6 +113,7 @@ class Server extends Command
 
     protected $command;
     protected static $servNames = [];
+    protected $lockFp = null;
 
     /**
      * runtime运行文件初始化
@@ -185,6 +186,9 @@ class Server extends Command
         if($http2){
             //$this->config['settings']['enable_static_handler'] = false;
         }
+        if($this->config['settings']['enable_static_handler'] && ($this->config['settings']['document_root'] == false || file_exists($this->config['settings']['document_root']) == false)){
+            App::error()->setError("静态文件目录不存在或未设置");
+        }
         //$this->config['settings']['stats_file'] = App::runtimePath().DIRECTORY_SEPARATOR.'status'.DIRECTORY_SEPARATOR.$this->loadName.'.json';
     }
 
@@ -206,7 +210,46 @@ class Server extends Command
         $argv = $input->getArgv();
         $this->init($argv);
         $command = $this->command;
+        // 文件锁防止并发执行 start/stop/restart/reload（至多重试3次，每次等0.5秒）
+        $needLock = in_array($command, ['start', 'stop', 'restart', 'reload']);
+        if($needLock){
+            $locked = false;
+            for($retry = 0; $retry < 3; $retry++){
+                if($this->serverLock()){
+                    $locked = true;
+                    break;
+                }
+                usleep(500000);
+            }
+            if(!$locked){
+                $this->output->output("另一个 server 命令正在执行，请稍后重试", 'error');
+                exit(1);
+            }
+        }
         $this->$command();
+        $this->serverUnlock();
+    }
+
+    /**
+     * 文件锁防止并发 start/stop/restart/reload
+     */
+    protected function serverLock(): bool {
+        $lockFile = App::runtimePath().DIRECTORY_SEPARATOR.'server.lock';
+        // 清理其他用户残留的锁文件（unlink 检查目录权限而非文件权限）
+        if(file_exists($lockFile) && !is_writable($lockFile)){
+            @unlink($lockFile);
+        }
+        $this->lockFp = @fopen($lockFile, 'w');
+        if(!$this->lockFp) return false;
+        return flock($this->lockFp, LOCK_EX | LOCK_NB);
+    }
+
+    protected function serverUnlock(): void {
+        if($this->lockFp){
+            flock($this->lockFp, LOCK_UN);
+            fclose($this->lockFp);
+            $this->lockFp = null;
+        }
     }
 
     /**
@@ -224,8 +267,12 @@ class Server extends Command
             $pidFile = $this->config['settings']['pid_file'];
             if(file_exists($pidFile)){
                 $pid = intval(file_get_contents($this->config['settings']['pid_file']));
-                if($pid && \Swoole\Process::kill($pid, 0)){
-                    //$this->output->output("进程ID{$pid}运行中...", 'error');
+                $ret = $pid && @\Swoole\Process::kill($pid, 0);
+                if($ret){
+                    return $pid;
+                }
+                // signal 0 可能因权限不足(EPERM)失败，通过 /proc 确认
+                if($pid && swoole_errno() === 1 && file_exists("/proc/{$pid}")){
                     return $pid;
                 }
             }
@@ -240,31 +287,34 @@ class Server extends Command
      */
     protected function isUsePort(){
         foreach($this->config['servers'] as $server){
-            $host = $server['host'];
-            if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-                $host = '['.$host.']';
-            }
-            $port = $server['port'];
-            $servType = $server['serv_type'];
-            if($servType != 2){
-                try {
-                    $socket = @stream_socket_server("tcp://{$host}:{$port}", $errno, $errstr, STREAM_SERVER_BIND);
-                    if($socket == false) return true; // 被占用
-                }catch (\Throwable $e){
-                    $this->output->output($port."tcp端口被占用...", 'error');
-                    return true; // 被占用
-                }
-            }else{
-                try {
-                    $socket = @stream_socket_server("udp://{$host}:{$port}", $errno, $errstr);
-                    if($socket == false) return true; // 被占用
-                }catch (\Throwable $e){
-                    $this->output->output($port."udp端口被占用...", 'error');
-                    return true; // 被占用
-                }
-            }
-            fclose($socket);
+            if($this->checkPort($server['host'], $server['port'], $server['serv_type'])) return true;
         }
+        return false;
+    }
+
+    /**
+     * 检查单个端口是否被占用
+     */
+    protected function checkPort(string $host, int $port, int $servType): bool {
+        if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            $host = '['.$host.']';
+        }
+        if($servType != 2){
+            try {
+                $socket = @stream_socket_server("tcp://{$host}:{$port}", $errno, $errstr, STREAM_SERVER_BIND);
+                if($socket == false) return true;
+            }catch (\Throwable $e){
+                return true;
+            }
+        }else{
+            try {
+                $socket = @stream_socket_server("udp://{$host}:{$port}", $errno, $errstr);
+                if($socket == false) return true;
+            }catch (\Throwable $e){
+                return true;
+            }
+        }
+        fclose($socket);
         return false;
     }
 
@@ -374,10 +424,18 @@ class Server extends Command
      * @return void|null
      */
     public function start(){
-        // 并且检查端口是否被占用
-
-        if($this->getServerPid() != 1 && $this->isRuning() && $this->isUsePort()){
+        if($this->getServerPid() != 1 && $this->isRuning()){
             return $this->output->output("程序已在运行...", 'info');
+        }
+        // 进程不在但端口被占用（可能是 stop 后内核未释放），等待至多5秒
+        if($this->isUsePort()){
+            $portStart = microtime(true);
+            while($this->isUsePort() && (microtime(true) - $portStart) < 5){
+                usleep(100000);
+            }
+            if($this->isUsePort()){
+                return $this->output->output("端口被占用，启动失败，请稍后重试", 'error');
+            }
         }
         $server = null;
         foreach($this->config['servers'] as $k => $v){
@@ -392,6 +450,14 @@ class Server extends Command
                 $this->serverEventBind($server, $v['callbacks']);
             }else if($server){
                 if($v['serv_type'] > $this->config['servers'][0]['serv_type']) App::error()->setError("第".($k+1).'个server的serv_type值不得高于首个serv_type的值');
+                // 在 bind 前再次确认子端口可用（防御 stream_socket_server SO_REUSEADDR 误判）
+                $subPortStart = microtime(true);
+                while($this->checkPort($v['host'], $v['port'], $v['serv_type']) && (microtime(true) - $subPortStart) < 3){
+                    usleep(100000);
+                }
+                if($this->checkPort($v['host'], $v['port'], $v['serv_type'])){
+                    App::error()->setError("子端口 {$v['port']} 被占用，启动失败");
+                }
                 $subServer = $this->addListenServer($server, $v);
                 if($subServer == false){
                     $errorMsg = $v['host'].'的'.$v['port'].'端口监听失败';
@@ -440,6 +506,8 @@ class Server extends Command
             }
         }
         Server::$server = $server;
+        // 释放文件锁再进入阻塞的事件循环（否则锁会被永久持有）
+        $this->serverUnlock();
         $server->start();
     }
 
@@ -449,7 +517,87 @@ class Server extends Command
      */
     public function restart(){
         $this->stop();
+        // stop() 后端口可能尚未被内核释放(TIME_WAIT)，等待至多3秒
+        $portStart = microtime(true);
+        while($this->isUsePort() && (microtime(true) - $portStart) < 3){
+            usleep(100000);
+        }
+        if($this->isUsePort()){
+            $this->output->output("端口仍被占用，重启失败，请稍后重试", 'error');
+            exit(1);
+        }
         $this->start();
+    }
+
+    /**
+     * 通过端口号反查占用进程 PID（无 PID 文件时的兜底方案）
+     */
+    protected function findPidByPorts(): int {
+        $ports = [];
+        foreach($this->config['servers'] as $conf){
+            $ports[] = $conf['port'];
+        }
+        foreach(array_unique($ports) as $port){
+            $pid = $this->findPidByPort($port);
+            if($pid > 0) return $pid;
+        }
+        return 0;
+    }
+
+    /**
+     * 通过单个端口反查占用进程 PID（返回存活进程中最低的 PID，通常是 master）
+     */
+    protected function findPidByPort(int $port): int {
+        // 获取端口上所有 PID，取存活进程中 PPID 最小的（即 master）
+        $output = @shell_exec("ss -tlnp 2>/dev/null | grep ':{$port} ' | grep -oP 'pid=\K[0-9]+'");
+        if($output){
+            $pids = array_unique(array_map('intval', array_filter(explode("\n", trim($output)))));
+            // 返回存活进程中 PID 最小的（Swoole master 先于 workers 启动）
+            sort($pids, SORT_NUMERIC);
+            foreach($pids as $candidate){
+                if($candidate > 1 && file_exists("/proc/{$candidate}")){
+                    return $candidate;
+                }
+            }
+        }
+        $output = @shell_exec("fuser {$port}/tcp 2>/dev/null");
+        if($output && intval(trim($output)) > 0){
+            return intval(trim($output));
+        }
+        return $this->findPidByPortProc($port, 'tcp') ?: $this->findPidByPortProc($port, 'tcp6');
+    }
+
+    /**
+     * 解析 /proc/net/tcp 找端口对应的 PID
+     */
+    protected function findPidByPortProc(int $port, string $proto = 'tcp'): int {
+        $path = "/proc/net/{$proto}";
+        if(!file_exists($path)) return 0;
+        $hexPort = str_pad(dechex($port), 4, '0', STR_PAD_LEFT);
+        $lines = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if(!$lines) return 0;
+        for($i = 1; $i < count($lines); $i++){
+            $parts = preg_split('/\s+/', trim($lines[$i]));
+            if(count($parts) < 10) continue;
+            $local = explode(':', $parts[1]);
+            if(count($local) < 2) continue;
+            if(strtolower($local[1]) === $hexPort){
+                $inode = intval($parts[9]);
+                if($inode > 0){
+                    $procDirs = @glob('/proc/[0-9]*', GLOB_ONLYDIR) ?: [];
+                    foreach($procDirs as $dir){
+                        $fds = @glob($dir.'/fd/*') ?: [];
+                        foreach($fds as $fd){
+                            $link = @readlink($fd);
+                            if($link && strpos($link, "socket:[{$inode}]") !== false){
+                                return intval(basename($dir));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return 0;
     }
 
     /**
@@ -458,23 +606,71 @@ class Server extends Command
      */
     public function stop(){
         $pid = $this->isRuning();
+        $portFallback = false;
+        // PID 文件缺失但端口被占用时，通过端口反查实际进程
+        if(!$pid && $this->isUsePort()){
+            $pid = $this->findPidByPorts();
+            if($pid > 0){
+                $this->output->output("PID文件缺失，通过端口反查到进程: {$pid}", 'info');
+                $portFallback = true;
+            }
+        }
         if($pid){
             try {
-                \Swoole\Process::kill($pid, SIGTERM);
+                $killRet = @\Swoole\Process::kill($pid, SIGINT);
+                if($killRet === false && swoole_errno() === 1){
+                    $this->output->output("无权限终止进程 {$pid}，请使用 sudo 执行", 'error');
+                    exit(1);
+                }
                 $startTime = microtime(true);
-                while ($this->isRuning()){
-                    usleep(100);
-                    if((microtime(true) - $startTime) > 10){
-                        $this->output->output('终止程序失败', 'error');
-                        exit();
+                // 端口反查模式用 isUsePort 判断存活，避免单个 PID 不准
+                $aliveCheck = $portFallback ? fn() => $this->isUsePort() : fn() => $this->checkPidRunning($pid);
+                while ($aliveCheck()){
+                    $elapsed = microtime(true) - $startTime;
+                    if($elapsed > 5){
+                        // 仅杀 master 进程，避免进程组杀波及父脚本
+                        @\Swoole\Process::kill($pid, SIGKILL);
+                        usleep(500000);
+                        if($aliveCheck()){
+                            $this->output->output("终止程序失败, 请手动执行: kill -9 {$pid}", 'error');
+                            exit(1);
+                        }
+                        break;
                     }
+                    usleep(200000);
+                }
+                // 等待 workers 释放端口（Swoole onShutdown 可能先于 workers 退出触发）
+                $portStart = microtime(true);
+                while($this->isUsePort() && (microtime(true) - $portStart) < 5){
+                    usleep(100000);
+                }
+                // 超时后端口仍被占用则报错退出，避免 restart() 时 bind 失败
+                if($this->isUsePort()){
+                    $this->output->output("等待端口释放超时，请稍后重试", 'error');
+                    exit(1);
                 }
                 if(file_exists($this->config['settings']['pid_file'])) @unlink($this->config['settings']['pid_file']);
             }catch (\Throwable $e){
                 $this->output->output($e->getMessage(), 'error');
-                exit();
+                exit(1);
             }
         }
+    }
+
+    /**
+     * 检查指定PID进程是否存活
+     */
+    protected function checkPidRunning(int $pid): bool {
+        try {
+            $ret = @\Swoole\Process::kill($pid, 0);
+            if($ret === false && swoole_errno() === 1){
+                // EPERM: 无权限发信号但进程存在(root进程)，通过 /proc 确认
+                return file_exists("/proc/{$pid}");
+            }
+            return $ret;
+        }catch (\Throwable $e){
+        }
+        return file_exists("/proc/{$pid}");
     }
 
     /**

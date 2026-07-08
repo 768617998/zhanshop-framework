@@ -30,13 +30,26 @@ class Log
 
     protected $lockTime = 1;
 
+    /**
+     * 防止 timer 重入导致 write() 并发执行
+     */
+    protected bool $isWriting = false;
+
     public function __construct(){
         $this->buffSize = App::config()->get("log.buffsize", 20000);
         $this->logLevel = App::config()->get("log.level", 4);
         $this->lockTime = floatval(App::env()->get("LOG_LOCK_TIME", "1"));
         if(PHP_OS == 'Darwin') $this->lockTime = 5;
         \Swoole\Timer::tick(3000, function(){
-            if($this->logBuffer) $this->write();
+            // 跨天句柄检查：即使 buffer 为空也要释放前一天句柄
+            // 否则前一天日志被删除后磁盘空间无法回收
+            if (!$this->isWriting) {
+                $logType = $this->logType;
+                if (method_exists($logType, 'rotateIfNeeded')) {
+                    $logType::rotateIfNeeded();
+                }
+            }
+            if($this->logBuffer && !$this->isWriting) $this->write();
         });
         $type = App::config()->get('log.type');
         if(strpos($type, '\\') === false){
@@ -62,8 +75,6 @@ class Log
      * @return void
      */
     public function push($msg, $level = 2, $tag = ''){
-        //$this->channel->push('['.date('Y-m-d H:i:s').']###[level'.$level.']###'.$msg, 0.01);
-        //App::make(TaskManager::class)->pushLog($msg);
         if($level < $this->logLevel) return;
         $this->logBuffer[] = '['.date('Y-m-d H:i:s').']###['.$level.'-'.$tag.']###'.$msg;
         if(count($this->logBuffer) >= $this->buffSize){
@@ -166,8 +177,33 @@ class Log
 
     public function write()
     {
+        if ($this->isWriting) return;
+        if (empty($this->logBuffer)) return;
+
+        $this->isWriting = true;
+
         $logBuffer = $this->logBuffer;
         $this->logBuffer = [];
-        App::make($this->logType)->write($logBuffer);
+
+        try {
+            $result = App::make($this->logType)->write($logBuffer);
+            if ($result === false) {
+                // 失败重试一次（磁盘瞬时满可能恢复）
+                $result = App::make($this->logType)->write($logBuffer);
+            }
+        } catch (\Throwable $e) {
+            // 异常也重试一次，再失败则丢弃
+            try {
+                App::make($this->logType)->write($logBuffer);
+            } catch (\Throwable $e2) {}
+        }
+        // 重试后仍失败 → 丢弃本批日志，不反复重试拖垮程序
+
+        $this->isWriting = false;
+
+        // 写盘期间有新日志涌入，立即再刷一轮
+        if (!empty($this->logBuffer)) {
+            $this->write();
+        }
     }
 }

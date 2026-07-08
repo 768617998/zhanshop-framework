@@ -37,7 +37,8 @@ class ApiRoute extends Command
             $this->generateClass($class);
         }
         $this->writeRoute();
-        $this->writeApiDoc();
+        //$this->writeApiDoc();
+        $this->writeOpenApi();
     }
 
     public function writeRoute(){
@@ -211,6 +212,312 @@ class ApiRoute extends Command
     protected function writeApiDocFile(string $path, array $data){
         Helper::mkdirs(dirname($path));
         file_put_contents($path, json_encode($data, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE));
+    }
+
+    // ==================== OpenAPI 3.1 生成 ====================
+
+    public function writeOpenApi(){
+        foreach($this->versionRoutes as $appName => $appRoutes){
+            $allVersions = array_keys($appRoutes);
+            $latestVersion = end($allVersions);
+
+            $port = App::env()->get(strtoupper($appName).'_PORT');
+            if(!$port){
+                // 从 config/server.php 中匹配对应 app 的端口
+                foreach(App::config()->get('server.servers', []) as $svr){
+                    if(($svr['name'] ?? '') === $appName){
+                        $port = $svr['port'] ?? '7201';
+                        break;
+                    }
+                }
+                $port = $port ?: '7201';
+            }
+            $host = App::env()->get('API_HOST', '127.0.0.1');
+            $schema = ($_SERVER['APP_ENV'] ?? 'dev') === 'production' ? 'https' : 'http';
+
+            $openapi = [
+                'openapi' => '3.1.0',
+                'info' => [
+                    'title' => $appName,
+                    'version' => $latestVersion,
+                    'description' => 'API Documentation for '.$appName,
+                ],
+                'servers' => [
+                    ['url' => $schema.'://'.$host.':'.$port, 'description' => $appName],
+                ],
+                'tags' => [],
+                'paths' => [],
+                'components' => [
+                    'securitySchemes' => [
+                        'BasicAuth' => [
+                            'type' => 'http',
+                            'scheme' => 'basic',
+                        ],
+                        'BearerAuth' => [
+                            'type' => 'http',
+                            'scheme' => 'bearer',
+                            'bearerFormat' => 'token',
+                        ],
+                    ],
+                ],
+            ];
+
+            $tags = [];
+            foreach($appRoutes as $version => $controllers){
+                foreach($controllers as $controllerName => $controllerRoutes){
+                    foreach($controllerRoutes as $route){
+                        $method = strtolower($route['api']['method']);
+                        if(!in_array($method, ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'])){
+                            continue;
+                        }
+
+                        $gTag = $route['apiGroup'] ?: 'Default';
+                        if(!isset($tags[$gTag])){
+                            $tags[$gTag] = ['name' => $gTag, 'description' => ''];
+                        }
+
+                        $uri = '/'.$version.'/'.$controllerName.'.'.$route['api']['uri'];
+                        $pathParams = $route['extra'];
+
+                        $hasToken = false;
+                        foreach($route['apiHeader'] ?? [] as $h){
+                            if(strtolower($h['name']) === 'token'){
+                                $hasToken = true;
+                                break;
+                            }
+                        }
+
+                        // operationId: {controller}_{method}_{version} 确保多版本唯一
+                        $baseUri = explode('/', str_replace(['{', '}'], '', $route['api']['uri']))[0];
+                        $operationId = $controllerName.'_'.$baseUri.'_'.$method.'_'.$version;
+
+                        $pathItem = $this->buildPathItem($route, $pathParams, $method, $hasToken, $gTag);
+                        $pathItem['operationId'] = $operationId;
+
+                        $openapi['paths'][$uri][$method] = $pathItem;
+                    }
+                }
+            }
+
+            $openapi['tags'] = array_values($tags);
+
+            $outputPath = App::runtimePath().DIRECTORY_SEPARATOR.'apidoc'.DIRECTORY_SEPARATOR.$appName.'.json';
+            $this->writeApiDocFile($outputPath, $openapi);
+        }
+    }
+
+    protected function buildPathItem(array $route, array $pathParams, string $method, bool $hasToken, string $tag): array {
+        $item = [
+            'tags' => [$tag],
+            'summary' => $route['api']['title'] ?? '',
+            'description' => $route['apiDescription'] ?? '',
+            'responses' => $this->buildResponses($route),
+        ];
+
+        // security
+        if($hasToken){
+            $item['security'] = [['BearerAuth' => []]];
+        }
+
+        // parameters
+        $parameters = $this->buildParameters($route, $pathParams);
+        if($parameters){
+            $item['parameters'] = $parameters;
+        }
+
+        // requestBody (POST/PUT/PATCH)
+        if(in_array(strtoupper($route['api']['method']), ['POST', 'PUT', 'PATCH'])){
+            $bodyParams = $this->filterBodyParams($route['apiParam'] ?? [], $pathParams);
+            if($bodyParams){
+                $item['requestBody'] = [
+                    'required' => true,
+                    'content' => [
+                        'application/json' => [
+                            'schema' => $this->paramsToSchema($bodyParams),
+                        ],
+                    ],
+                ];
+            }
+        }
+
+        return $item;
+    }
+
+    /**
+     * 过滤出 body 参数（排除路径参数和header参数）
+     */
+    protected function filterBodyParams(array $params, array $pathParams): array {
+        $body = [];
+        foreach($params as $p){
+            if(!in_array($p['name'], $pathParams)){
+                $body[] = $p;
+            }
+        }
+        return $body;
+    }
+
+    /**
+     * 构建 parameters 数组（query + path + header）
+     */
+    protected function buildParameters(array $route, array $pathParams): array {
+        $parameters = [];
+        $usedInBody = in_array(strtoupper($route['api']['method']), ['POST', 'PUT', 'PATCH']);
+        $bodyParamNames = $usedInBody ? array_column($this->filterBodyParams($route['apiParam'] ?? [], $pathParams), 'name') : [];
+
+        // path params
+        foreach($pathParams as $name){
+            $paramData = $this->findParam($route['apiParam'] ?? [], $name);
+            $parameters[] = [
+                'name' => $name,
+                'in' => 'path',
+                'required' => true,
+                'description' => $paramData['description'] ?? '',
+                'schema' => $this->typeToSchema($paramData['type'] ?? 'string'),
+            ];
+        }
+
+        // query params (only for GET/DELETE, or for POST params not in body)
+        foreach($route['apiParam'] ?? [] as $p){
+            if(in_array($p['name'], $pathParams)) continue;
+            if($usedInBody && in_array($p['name'], $bodyParamNames)) continue;
+            $parameters[] = [
+                'name' => $p['name'],
+                'in' => 'query',
+                'required' => $p['required'] === 'true',
+                'description' => $p['description'] ?? '',
+                'schema' => $this->typeToSchema($p['type'] ?? 'string'),
+            ];
+        }
+
+        // header params
+        foreach($route['apiHeader'] ?? [] as $h){
+            $parameters[] = [
+                'name' => $h['name'],
+                'in' => 'header',
+                'required' => $h['required'] === 'true',
+                'description' => $h['description'] ?? '',
+                'schema' => $this->typeToSchema($h['type'] ?? 'string'),
+            ];
+        }
+
+        return $parameters;
+    }
+
+    /**
+     * 构建 responses
+     */
+    protected function buildResponses(array $route): array {
+        $responses = [];
+
+        // 200 success
+        $successSchema = ['type' => 'object', 'properties' => []];
+        if(isset($route['apiSuccess']) && $route['apiSuccess']){
+            $successSchema = $this->paramsToSchema($route['apiSuccess']);
+        }
+        $responses['200'] = [
+            'description' => '成功',
+            'content' => [
+                'application/json' => [
+                    'schema' => $this->wrapStandardResponse($successSchema),
+                ],
+            ],
+        ];
+
+        // error responses
+        foreach($route['apiError'] ?? [] as $err){
+            $code = (string)($err['code'] ?? '500');
+            if(!$code) continue;
+            $responses[$code] = [
+                'description' => $err['description'] ?? 'Error',
+            ];
+        }
+
+        // 默认 401
+        if(!isset($responses['401'])){
+            $responses['401'] = ['description' => '未认证'];
+        }
+
+        return $responses;
+    }
+
+    /**
+     * 将注解参数列表转为 OpenAPI Schema
+     */
+    protected function paramsToSchema(array $params): array {
+        $schema = ['type' => 'object'];
+        if(!$params) return $schema;
+
+        $properties = [];
+        $required = [];
+        foreach($params as $p){
+            $prop = $this->typeToSchema($p['type'] ?? 'string');
+            if(!empty($p['description'])){
+                $prop['description'] = $p['description'];
+            }
+            if(isset($p['default']) && $p['default'] !== null){
+                $prop['default'] = $p['default'] === 'true' ? true :
+                    ($p['default'] === 'false' ? false :
+                    (is_numeric($p['default']) ? (int)$p['default'] : $p['default']));
+            }
+            // nested children
+            if(!empty($p['children'])){
+                $childSchema = $this->paramsToSchema($p['children']);
+                if($p['type'] === 'array'){
+                    $prop['type'] = 'array';
+                    $prop['items'] = $childSchema;
+                }else{
+                    $prop = array_merge($prop, $childSchema);
+                }
+            }
+            $properties[$p['name']] = $prop;
+            if($p['required'] === 'true'){
+                $required[] = $p['name'];
+            }
+        }
+
+        $schema['properties'] = $properties;
+        if($required){
+            $schema['required'] = $required;
+        }
+        return $schema;
+    }
+
+    /**
+     * 包装标准响应格式 {code, msg, data}
+     */
+    protected function wrapStandardResponse(array $dataSchema): array {
+        return [
+            'type' => 'object',
+            'properties' => [
+                'code' => ['type' => 'integer', 'example' => 0],
+                'msg' => ['type' => 'string', 'example' => 'ok'],
+                'data' => $dataSchema,
+            ],
+        ];
+    }
+
+    /**
+     * 注解类型 → OpenAPI schema 类型
+     */
+    protected function typeToSchema(string $type): array {
+        return match (strtolower($type)) {
+            'int', 'integer' => ['type' => 'integer'],
+            'float', 'double', 'number' => ['type' => 'number'],
+            'bool', 'boolean' => ['type' => 'boolean'],
+            'array' => ['type' => 'array', 'items' => ['type' => 'string']],
+            'object' => ['type' => 'object'],
+            default => ['type' => 'string'],
+        };
+    }
+
+    /**
+     * 在参数列表中查找指定名称的参数
+     */
+    protected function findParam(array $params, string $name): array {
+        foreach($params as $p){
+            if($p['name'] === $name) return $p;
+        }
+        return [];
     }
 }
 

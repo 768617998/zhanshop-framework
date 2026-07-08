@@ -116,7 +116,7 @@ class Database{
         $xid = uniqid('xa').rand(0, 99999); // 如果报事务id已存在先确认是否事务在一个数据库中，如果是就会报错，如果是多个不同的服务器连接就没有问题
         try {
             foreach($connections as $k => $v){
-                $pdoPoll = DbManager::get($v);
+                $pdoPoll = App::make(DbManager::class)->get($v);
                 $pdo = $pdoPoll->getPDO();
                 $pdos[] = [
                     'poll' => $pdoPoll,
@@ -126,7 +126,11 @@ class Database{
             }
         }catch (\Throwable $e){
             //  当出现连接池不够用可能会报错导致连接无法回收,在这里进行处理和回收
+            //  已成功 XA START 的连接需要先 END + ROLLBACK，否则回池后残留 XA 状态
             foreach($pdos as $v){
+                try {
+                    $v['poll']->drive()->rollbackXa($v['pdo'], $xid);
+                }catch (\Throwable $rollbackErr){}
                 $v['poll']->recoveryPDO($v['pdo']);
             }
             App::error()->setError($e->getMessage().' '.$e->getFile().':'.$e->getLine());
