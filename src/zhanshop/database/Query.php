@@ -296,9 +296,9 @@ class Query
 
     public function column(string $field, string $key, mixed $pdo = null){
         $ret = [];
-        $data = $this->field($key.','.$field)->select($pdo);
+        $data = $this->field($field === '*' ? '*' : $key.','.$field)->select($pdo);
         if($data){
-            if(strpos($field, ',') === false){
+            if($field != '*' && strpos($field, ',') === false){
                 foreach($data as $v){
                     $ret[$v[$key]] = $v[$field];
                 }
@@ -349,7 +349,7 @@ class Query
 
     public function transaction($call){
         $pdoPoll = App::make(DbManager::class)->get($this->connection);
-        $pdoPoll->transaction($call);
+        return $pdoPoll->transaction($call);
     }
 
     /**

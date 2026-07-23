@@ -54,20 +54,22 @@ class Database{
             return false;
         }
     }
-
+    /**
+     * 获取model
+     * @param mixed $name
+     * @return Query
+     */
     public function table(string $table, string $connection = ""){
         if($connection == false) $connection = App::config()->get('database.default');
         $query = $this->getQuery($connection);
         $query->table($table);
         return $query;
     }
-
     public function query(string $sql, array $bind = [], string $connection = "", mixed $pdo = null){
         if($connection == false) $connection = App::config()->get('database.default');
         $query = $this->getQuery($connection);
         return $query->query($sql, $bind, $pdo);
     }
-
     public function execute(string $sql, array $bind = [], string $connection = "", bool $lastID = false, mixed $pdo = null){
         if($connection == false) $connection = App::config()->get('database.default');
         $query = $this->getQuery($connection);

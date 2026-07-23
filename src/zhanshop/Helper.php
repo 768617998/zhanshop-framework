@@ -59,17 +59,16 @@ class Helper
 
     /**
      * 生成uuid
-     * @param int $num
+     * @param string $ip
      * @return string
      */
-    public static function uuid(){
-        $ip = str_replace('.','',$_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');//9位
-        // 最高12
-        if(is_numeric($ip) == false) $ip = '127001';
-        // 最高14
-        $time = substr((new \DateTime())->format('ymdHisu'), 0, 14);
-        $code = self::getNonceStr(32 - strlen($ip) -  strlen($time));
-        return $code.$time.$ip;
+    public static function uuid(string $ip = ""){
+        $ip = str_replace(['.', ':'], '', $ip);
+        if (!is_numeric($ip)) $ip = '127001';
+        $date = new \DateTime();
+        $time = $date->format('ymdHisu') . sprintf('%04d', hrtime(false)[1] % 10000);
+        $code = self::getNonceStr(32 - strlen($ip) - strlen($time));
+        return $code . $time . $ip;
     }
 
     /**
@@ -97,8 +96,15 @@ declare (strict_types=1);\n\n";
      */
     public static function orderId(){
         $date = new \DateTime();
-        $date = substr($date->format('ymdHisu'), 0, 14).substr(strval(getmypid()), -1, 1);
-        $date .= sprintf("%04d", rand(0, 9999));
+        $date = $date->format('ymdHisu') . substr(strval(getmypid()), -1);
+        $randomLen = 19 - strlen($date);
+        if ($randomLen <= 0) return intval($date);
+        $max = intval(str_repeat("9", $randomLen));
+        try {
+            $date .= sprintf("%0{$randomLen}d", random_int(0, $max));
+        } catch (\Exception $e) {
+            $date .= sprintf("%0{$randomLen}d", mt_rand(0, $max));
+        }
         return intval($date);
     }
 
@@ -109,9 +115,12 @@ declare (strict_types=1);\n\n";
      */
     public static function getNonceNum($length = 6)
     {
-        if($length >= 19) $length = 19;
-        $max = intval(str_repeat("9", $length));
-        return sprintf("%0{$length}d", rand(0, $max));
+        $max = intval(str_repeat("9", min($length, 18)));
+        try {
+            return sprintf("%0{$length}d", random_int(0, $max));
+        } catch (\Exception $e) {
+            return sprintf("%0{$length}d", mt_rand(0, $max));
+        }
     }
 
     /**
@@ -121,11 +130,17 @@ declare (strict_types=1);\n\n";
      */
     public static function getDateNonceNum($length = 32){
         $date = new \DateTime();
-        $date = substr($date->format('ymdHisu'), 0, 14).substr(strval(getmypid()), -1, 1);
-        $length -= strlen($date);
-        $max = intval(str_repeat("9", $length));
-        $date .= sprintf("%0{$length}d", rand(0, $max));
-        return $date;
+        $prefix = $date->format('ymdHisu') . substr(strval(getmypid()), -3) . sprintf('%04d', hrtime(false)[1] % 10000);
+        $randomLen = $length - strlen($prefix);
+        if ($randomLen < 0) return substr($prefix, 0, $length);
+        if ($randomLen == 0) return $prefix;
+        $max = intval(str_repeat("9", min($randomLen, 18)));
+        try {
+            $prefix .= sprintf("%0{$randomLen}d", random_int(0, $max));
+        } catch (\Exception $e) {
+            $prefix .= sprintf("%0{$randomLen}d", mt_rand(0, $max));
+        }
+        return $prefix;
     }
 
     /**
@@ -136,10 +151,18 @@ declare (strict_types=1);\n\n";
      */
     public static function getNonceStr($length = 32)
     {
-        $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        $str ="";
-        for ( $i = 0; $i < $length; $i++ )  {
-            $str .= substr($chars, mt_rand(0, strlen($chars)-1), 1);
+        $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        $max = strlen($chars) - 1;
+        $str = '';
+        try {
+            for ($i = 0; $i < $length; $i++) {
+                $str .= $chars[random_int(0, $max)];
+            }
+        } catch (\Exception $e) {
+            $str = '';
+            for ($i = 0; $i < $length; $i++) {
+                $str .= $chars[mt_rand(0, $max)];
+            }
         }
         return $str;
     }
@@ -265,7 +288,12 @@ declare (strict_types=1);\n\n";
     public static function uniqueNum(int $serial = 0)
     {
         $date = new \DateTime();
-        return intval(substr($date->format('ymdHisuv'), 0, 18).rand(1, 9)) + $serial;
+        try {
+            $suffix = random_int(1, 9);
+        } catch (\Exception $e) {
+            $suffix = mt_rand(1, 9);
+        }
+        return intval($date->format('ymdHisu') . $suffix) + $serial;
     }
 
     /**
@@ -512,24 +540,32 @@ declare (strict_types=1);\n\n";
     public static function urlEncodeParam(string $url)
     {
         $parses = parse_url($url);
+        if ($parses === false || !isset($parses['scheme'], $parses['host'])) return $url;
         if(self::isURLEncoded($url) == false && isset($parses['path'])){
             $path = '';
             foreach (explode('/', ltrim($parses['path'], '/')) as $part) {
                 $code = rawurlencode($part);
-                if($part != $code){
-                    $path .= '/' . $code;
-                }else{
-                    $path .= '/' . $part;
-                }
+                $path .= '/' . ($part !== $code ? $code : $part);
             }
             $user = isset($parses['user']) ? $parses['user'] : '';
             $pass = isset($parses['pass']) ? ':' . $parses['pass'] : '';
             $auth = ($user || $pass) ? "$user$pass@" : '';
-            $parses['port'] = isset($parses['port']) ? ':' . $parses['port'] : '';
-            $url = $parses['scheme'].'://'.$auth.$parses['host'].$parses['port'].$path;
+            $port = isset($parses['port']) ? ':' . $parses['port'] : '';
+            $url = $parses['scheme'].'://'.$auth.$parses['host'].$port.$path;
             if(isset($parses['query'])) $url .= '?'.$parses['query'];
             return $url;
         }
         return $url;
+    }
+
+    /**
+     * 小数处理
+     * @param float $num
+     * @param int $decimals
+     * @return float
+     */
+    public static function numberFormat(float $num,  int $decimals = 2)
+    {
+        return sprintf("%.2f", $num, 0, -1);
     }
 }
