@@ -120,6 +120,13 @@ class JsonRpcEvent extends Event
             ], JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE), Log::NOTICE, 'RPC');
 
             $server->send($fd, json_encode($resp, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE)."\r\n");
+        }else{
+            $server->send($fd, json_encode([
+                'code' => 400,
+                'msg' => 'Invalid JSON',
+                'header' => [],
+                'data' => 'JSON解析失败: '.substr($data, 0, 100),
+            ], JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE)."\r\n");
         }
     }
 

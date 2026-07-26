@@ -12,6 +12,7 @@ namespace zhanshop\payment\weixin;
 
 use zhanshop\App;
 use zhanshop\client\Httpclient;
+use zhanshop\Helper;
 
 class Refund
 {
@@ -49,8 +50,8 @@ class Refund
             'reason' => $reason,
             //'notify_url' => $config['notifyurl'].'/refundwxpay',
             'amount' => [
-                'refund' => $amount * 100,
-                "total" => $amount * 100,
+                'refund' => Helper::toFen($amount),
+                "total" => Helper::toFen($amount),
                 "currency" => $this->config->get('currency', 'CNY'),
             ],
         ];

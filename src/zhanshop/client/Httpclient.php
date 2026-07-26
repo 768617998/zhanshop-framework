@@ -395,13 +395,13 @@ class Httpclient
 
         $client->download($path, $saveFile);
         $statusCode = $client->getStatusCode();
+        $headers = $client->getHeaders();
         $client->close();
         $this->config['cookie'] = [];
         $this->config['header'] = [];
         $this->config['uploadfile'] = [];
         $this->config['uploaddata'] = [];
         if($statusCode == 301 || $statusCode == 302){
-            $headers = $client->getHeaders();
             if(isset($headers['location']) && $headers['location'] && $offset >= -3){
                 return $this->download($headers['location'], $saveFile, $offset - 1);
             }
@@ -459,6 +459,7 @@ class Httpclient
 
                 $client->execute($config['path']);
                 $result[] = $client->getStatusCode();
+                $client->close();
             });
         }
 

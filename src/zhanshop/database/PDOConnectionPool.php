@@ -184,7 +184,9 @@ class PDOConnectionPool
                 $this->reconnect(); // 重连
                 if($isRetry) return $this->transaction($call, false); // 重试
             }else{
-                $pdo->rollback(); // 如果连接被断开使用回滚方法会异常
+                try {
+                    $pdo->rollback(); // 如果连接被断开使用回滚方法会异常
+                }catch (\Throwable $err){}
                 $this->recoveryPDO($pdo);
             }
             throw new \Exception($e->getMessage());

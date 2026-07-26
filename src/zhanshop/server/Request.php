@@ -128,31 +128,15 @@ class Request
      */
     public function contentType(): string
     {
-        if(null !== $this->contentType) return $this->contentType;
+        if (null !== $this->contentType) return $this->contentType;
 
         $type = '';
-        if(in_array($this->protocol, [Server::HTTP, Server::WEBSOCKET])){
+        if (in_array($this->protocol, [Server::HTTP, Server::WEBSOCKET])) {
             $contentType = $this->rawRequest->header['content-type'] ?? '';
             if ($contentType) {
-                if (strpos($contentType, ';')) {
-                    [$type] = explode(';', $contentType);
-                } else {
-                    $type = $contentType;
-                }
-                $type = trim($type);
-
-                // 如果是json请求
-                if(false !== strpos($type, 'json')){
-                    $rawContent = $this->rawRequest->rawContent();
-                    if($rawContent){
-                        $rawData = json_decode($rawContent, true);
-                        if($rawData){
-                            $this->rawRequest->post = $rawData;
-                        }else{
-                            Log::errorLog(SWOOLE_LOG_WARNING, 'json请求格式错误:'.$rawContent);
-                        }
-                    }
-                }
+                $type = strpos($contentType, ';') !== false
+                    ? trim(explode(';', $contentType)[0])
+                    : trim($contentType);
             }
         }
 

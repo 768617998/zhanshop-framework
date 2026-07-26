@@ -40,6 +40,7 @@ class RpcClient
     {
         $client = new Client(SWOOLE_SOCK_TCP);
         if (!$client->connect($this->host, $this->port, $this->timeOut)){
+            $client->close();
             App::error()->setError($this->host.':'.$this->port.'rpc服务器连接失败#'.$client->errCode);
         }
 
@@ -62,7 +63,10 @@ class RpcClient
                 if(strpos($fullData, "\r\n") !== false){
                     break;
                 }
-                if((microtime(true) - $startTime) > $this->timeOut) App::error()->setError($this->host.':'.$this->port.'rpc消息响应超时', 408);
+                if((microtime(true) - $startTime) > $this->timeOut) {
+                    $client->close();
+                    App::error()->setError($this->host.':'.$this->port.'rpc消息响应超时', 408);
+                }
             }
         }
 

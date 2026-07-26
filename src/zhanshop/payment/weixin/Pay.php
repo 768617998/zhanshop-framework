@@ -12,6 +12,7 @@ namespace zhanshop\payment\weixin;
 
 use zhanshop\App;
 use zhanshop\client\Httpclient;
+use zhanshop\Helper;
 
 class Pay
 {
@@ -50,7 +51,7 @@ class Pay
             'description' => $orderId.'订单',
             'attach' => json_encode($attach),
             'amount' => [
-                'total' => $amount * 100,
+                'total' => Helper::toFen($amount),
                 'currency' => $this->config->get('currency', 'CNY'),
             ],
             'notify_url' => $this->config->get('notifyurl').'/appwxpay',
@@ -112,7 +113,7 @@ class Pay
             'description' => $orderId.'订单',
             'notify_url' => $this->config->get('notifyurl').'/wapwxpay',
             'amount' => [
-                "total" => $amount * 100,
+                "total" => Helper::toFen($amount),
                 "currency" => $this->config->get('currency', 'CNY'),
             ],
             'time_expire' => str_replace(' ', 'T', date('Y-m-d H:i:s', time() + $this->config->get('timeout'))).'+08:00',
@@ -162,7 +163,7 @@ class Pay
             'description' => $orderId.'订单',
             'notify_url' => $this->config->get('notifyurl').'/jswxpay',
             'amount' => [
-                "total" => $amount * 100,
+                "total" => Helper::toFen($amount),
                 "currency" => $this->config->get('currency', 'CNY'),
             ],
             'time_expire' => str_replace(' ', 'T', date('Y-m-d H:i:s', time() + $this->config->get('timeout'))).'+08:00',
@@ -230,7 +231,7 @@ class Pay
             'description' => $orderId.'订单',
             'notify_url' => $this->config->get('notifyurl').'/nativewxpay',
             'amount' => [
-                "total" => $amount * 100,
+                "total" => Helper::toFen($amount),
                 "currency" => $this->config->get('currency', 'CNY'),
             ],
             'time_expire' => str_replace(' ', 'T', date('Y-m-d H:i:s', time() + $this->config->get('timeout'))).'+08:00',
@@ -297,7 +298,7 @@ class Pay
                 'auth_code' => $authCode,
             ],
             'amount'       => [
-                'total'    => (int)($amount * 100),
+                'total'    => Helper::toFen($amount),
                 'currency' => $this->config->get('currency', 'CNY'),
             ],
             'attach'       => json_encode($attach),

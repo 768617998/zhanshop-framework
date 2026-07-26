@@ -31,13 +31,13 @@ class McpEvent
      * @param Response $response
      * @return array
      */
-    protected function getInputParam($request, $response)
+    protected function getInputParam($request, $response): array|false|null
     {
         $content = $request->getContent();
         if($content && is_string($content)){
             $content = json_decode($content, true);
         }
-        if($content == false && ($request->server['request_method'] ?? 'POST') == "POST"){
+        if(($content === false || $content === null) && ($request->server['request_method'] ?? 'POST') == "POST"){
             $response->header('Content-Type', 'text/html; charset=utf-8');
             $response->status(400);
             $response->end('400: 输入参数无效');
@@ -51,6 +51,7 @@ class McpEvent
      */
     public function onRequest($request, $response) :void{
         $param = $this->getInputParam($request, $response);
+        if($param === false || $param === null) return; // 参数无效，response 已在 getInputParam 中 end
         if($param){
             $request->post = $param['params']['arguments'] ?? [];
             unset($param['params']['arguments']);

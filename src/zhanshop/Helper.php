@@ -562,10 +562,78 @@ declare (strict_types=1);\n\n";
      * 小数处理
      * @param float $num
      * @param int $decimals
-     * @return float
+     * @return string
      */
-    public static function numberFormat(float $num,  int $decimals = 2)
+    public static function numberFormat(float|string $num, int $decimals = 2): string
     {
-        return sprintf("%.2f", $num, 0, -1);
+        $num = (string)$num;
+        // BC Math 不支持科学计数法（如 5.0E-5），需要先转为普通小数
+        if (stripos($num, 'E') !== false) {
+            $num = sprintf('%.10f', (float)$num);
+        }
+        $pow = bcpow('10', (string)$decimals, 0);
+        return bcdiv(bcmul($num, $pow, 0), $pow, $decimals);
+    }
+
+    /**
+     * 元转分（截断到2位小数）
+     * @param float $amount
+     * @return int
+     */
+    public static function toFen(float|string $amount): int
+    {
+        $amount = (string)$amount;
+        if (stripos($amount, 'E') !== false) {
+            $amount = sprintf('%.10f', (float)$amount);
+        }
+        return (int)bcmul($amount, '100', 0);
+    }
+
+    /**
+     * 安全加法（BC Math 精确运算，避免浮点累加漂移）
+     * @param float|string $left
+     * @param float|string $right
+     * @param int $scale 小数位数，默认 2
+     * @return string
+     */
+    public static function safeAdd(float|string $left, float|string $right, ?int $scale = 2): string
+    {
+        return bcadd((string)$left, (string)$right, $scale);
+    }
+
+    /**
+     * 安全减法（BC Math 精确运算，避免浮点累加漂移）
+     * @param float|string $left
+     * @param float|string $right
+     * @param int $scale 小数位数，默认 2
+     * @return string
+     */
+    public static function safeSub(float|string $left, float|string $right, ?int $scale = 2): string
+    {
+        return bcsub((string)$left, (string)$right, $scale);
+    }
+
+    /**
+     * 安全乘法（BC Math 精确运算，避免浮点漂移）
+     * @param float|string $left
+     * @param float|string $right
+     * @param int|null $scale 小数位数，默认 2
+     * @return string
+     */
+    public static function safeMul(float|string $left, float|string $right, ?int $scale = 2): string
+    {
+        return bcmul((string)$left, (string)$right, $scale);
+    }
+
+    /**
+     * 安全除法（BC Math 精确运算，避免浮点漂移）
+     * @param float|string $left
+     * @param float|string $right
+     * @param int|null $scale 小数位数，默认 2
+     * @return string
+     */
+    public static function safeDiv(float|string $left, float|string $right, ?int $scale = 2): string
+    {
+        return bcdiv((string)$left, (string)$right, $scale);
     }
 }

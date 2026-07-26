@@ -299,16 +299,21 @@ class Server extends Command
         if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
             $host = '['.$host.']';
         }
+        $context = stream_context_create([
+            'socket' => [
+                'so_reuseaddr' => true,
+            ],
+        ]);
         if($servType != 2){
             try {
-                $socket = @stream_socket_server("tcp://{$host}:{$port}", $errno, $errstr, STREAM_SERVER_BIND);
+                $socket = @stream_socket_server("tcp://{$host}:{$port}", $errno, $errstr, STREAM_SERVER_BIND, $context);
                 if($socket == false) return true;
             }catch (\Throwable $e){
                 return true;
             }
         }else{
             try {
-                $socket = @stream_socket_server("udp://{$host}:{$port}", $errno, $errstr);
+                $socket = @stream_socket_server("udp://{$host}:{$port}", $errno, $errstr, STREAM_SERVER_BIND, $context);
                 if($socket == false) return true;
             }catch (\Throwable $e){
                 return true;
@@ -617,7 +622,7 @@ class Server extends Command
         }
         if($pid){
             try {
-                $killRet = @\Swoole\Process::kill($pid, SIGINT);
+                $killRet = @\Swoole\Process::kill($pid, SIGTERM);
                 if($killRet === false && swoole_errno() === 1){
                     $this->output->output("无权限终止进程 {$pid}，请使用 sudo 执行", 'error');
                     exit(1);
@@ -644,10 +649,11 @@ class Server extends Command
                 while($this->isUsePort() && (microtime(true) - $portStart) < 5){
                     usleep(100000);
                 }
-                // 超时后端口仍被占用则报错退出，避免 restart() 时 bind 失败
                 if($this->isUsePort()){
                     $this->output->output("等待端口释放超时，请稍后重试", 'error');
-                    exit(1);
+                    // 进程已确认终止，PID 文件为僵尸数据，清理后返回
+                    if(file_exists($this->config['settings']['pid_file'])) @unlink($this->config['settings']['pid_file']);
+                    return;
                 }
                 if(file_exists($this->config['settings']['pid_file'])) @unlink($this->config['settings']['pid_file']);
             }catch (\Throwable $e){
@@ -679,6 +685,9 @@ class Server extends Command
      */
     public function reload(){
         $pid = $this->isRuning();
+        if(!$pid && $this->isUsePort()){
+            $pid = $this->findPidByPorts();
+        }
         if($pid){
             try {
                 \Swoole\Process::kill($pid, SIGUSR1);

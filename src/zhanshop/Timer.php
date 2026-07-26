@@ -139,7 +139,7 @@ class Timer
         $ms = ($ruleTime - $currentTime) * 1000;
         // 设置第一次执行的时间
         STimer::after($ms, function () use ($crontab){
-            STimer::tick(86400 * 7 * 1000, [$crontab, 'execute']); // 首次执行后添加下次执行的时间也就1周后的现在
+            $crontab->timerId = STimer::tick(86400 * 7 * 1000, [$crontab, 'execute']); // 首次执行后添加下次执行的时间也就1周后的现在
             try {
                 $crontab->execute();
             }catch (\Throwable $e){

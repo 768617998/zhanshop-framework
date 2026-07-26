@@ -148,6 +148,9 @@ class Event
                 App::make(WebHook::class)->bridge($msg);
             });
         }
+        Timer::clearAll();
+        App::make(CacheManager::class)->clean(); // 释放cache连接
+        App::make(DbManager::class)->clean(); // 释放db连接
     }
 
     /**
@@ -157,8 +160,6 @@ class Event
      * @return void
      */
     public function onWorkerExit($server, $workerId) :void{
-        Timer::clearAll();
-        App::log()->write();
     }
 
     /**
@@ -179,9 +180,7 @@ class Event
         // 将以上信息都贴在 issue 中
         $msg = '工作进程'.$worker_id.',所属进程'.$worker_pid.'退出码'.$exit_code.'退出信号'.$signal;
         Log::errorLog(SWOOLE_LOG_ERROR, $msg);
-        foreach ($server->connections as $fd) {
-            $server->close($fd, true);
-        }
+        // onWorkerError 在 Manager 进程中回调，Manager 不持有客户端连接，
     }
 
     /**

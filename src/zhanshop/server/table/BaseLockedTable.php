@@ -18,14 +18,14 @@ use zhanshop\App;
  * 同样使用类名注册表模式，子类无需重新声明任何属性。
  *
  * 锁策略：
- *  - 全局锁: initLocks(0) 或 initLocks(null) → 单把 SWOOLE_MUTEX
+ *  - 全局锁: initLocks(0) 或 initLocks(null) → 单把 Coroutine\Lock
  *  - 分片锁: initLocks(n) → n 把锁，按 key hash 分配
  */
 abstract class BaseLockedTable extends BaseTable
 {
     /**
-     * 锁注册表: [子类类名 => Lock|Lock[]]
-     * @var array<string, \Swoole\Lock|\Swoole\Lock[]>
+     * 锁注册表: [子类类名 => Coroutine\Lock|Coroutine\Lock[]]
+     * @var array<string, \Swoole\Coroutine\Lock|\Swoole\Coroutine\Lock[]>
      */
     private static array $allLocks = [];
 
@@ -52,7 +52,7 @@ abstract class BaseLockedTable extends BaseTable
         self::$allLockTimeouts[$class] = $timeout;
 
         if ($shardNum === null || $shardNum <= 0) {
-            self::$allLocks[$class] = new \Swoole\Lock(SWOOLE_MUTEX);
+            self::$allLocks[$class] = new \Swoole\Coroutine\Lock();
             self::$allLockShards[$class] = 0;
             return;
         }
@@ -60,7 +60,7 @@ abstract class BaseLockedTable extends BaseTable
         self::$allLockShards[$class] = $shardNum;
         $locks = [];
         for ($i = 0; $i < $shardNum; $i++) {
-            $locks[$i] = new \Swoole\Lock(SWOOLE_MUTEX);
+            $locks[$i] = new \Swoole\Coroutine\Lock();
         }
         self::$allLocks[$class] = $locks;
     }
@@ -68,7 +68,7 @@ abstract class BaseLockedTable extends BaseTable
     /**
      * 根据 key 获取对应的锁
      */
-    protected static function getLock(int|string $key): \Swoole\Lock
+    protected static function getLock(int|string $key): \Swoole\Coroutine\Lock
     {
         $class = static::class;
         $shard = self::$allLockShards[$class] ?? 0;
@@ -84,15 +84,15 @@ abstract class BaseLockedTable extends BaseTable
     /**
      * 获取锁 带超时
      */
-    protected static function acquireLock(\Swoole\Lock $lock): void
+    protected static function acquireLock(\Swoole\Coroutine\Lock $lock): void
     {
         $timeout = self::$allLockTimeouts[static::class] ?? 3.0;
-        $microtime = microtime(true);
+        $startTime = microtime(true);
         while (true) {
-            if ($lock->lock(LOCK_EX, 0.001)) {
+            if ($lock->lock(LOCK_NB)) {
                 return;
             }
-            if ((microtime(true) - $microtime) >= $timeout) {
+            if ((microtime(true) - $startTime) >= $timeout) {
                 App::error()->setError('共享内存锁获取失败,超时=' . $timeout . 's');
             }
             usleep(100000);
@@ -102,7 +102,7 @@ abstract class BaseLockedTable extends BaseTable
     /**
      * 释放锁
      */
-    protected static function releaseLock(\Swoole\Lock $lock): void
+    protected static function releaseLock(\Swoole\Coroutine\Lock $lock): void
     {
         $lock->unlock();
     }
