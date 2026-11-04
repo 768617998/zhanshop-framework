@@ -18,5 +18,5 @@ class ShareConfig
      * 载入共享内存配置
      * @return mixed
      */
-    abstract public function load();
+    public function load() {}
 }

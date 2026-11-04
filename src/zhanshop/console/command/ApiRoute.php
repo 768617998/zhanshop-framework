@@ -93,8 +93,8 @@ class ApiRoute extends Command
 
                     $versionRouteCode .= '})';
                     if($middlewares){
-                        $middlewares = '['.implode(', ', array_values($middlewares)).']';
-                        $versionRouteCode .= "->middleware(".$middlewares.")";
+                        $middlewareStr = '['.implode(', ', array_values($middlewares)).']';
+                        $versionRouteCode .= "->middleware(".$middlewareStr.")";
                     }
                     $versionRouteCode .= ';'.PHP_EOL.PHP_EOL; // 全局中间件加进去
                 }

@@ -51,6 +51,7 @@ class GaodeMap
     public function regionQuery(string $query, string $cicy, string $type)
     {
         $url = 'https://restapi.amap.com/v5/place/text?keywords='.urlencode($query).'&types='.$type.'&region='.urlencode($cicy).'&key='.$this->config["app_key"];
+        $client = new Httpclient();
         $result = $client->debug()->request($url);
         $body = json_decode($result['body'] ?? "", true);
         if($body) $result['body'] = $body;

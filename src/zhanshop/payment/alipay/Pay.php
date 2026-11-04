@@ -87,7 +87,7 @@ class Pay
         $params = $this->config->signParams($data, 'wapalipay');
 
         $sHtml = "<form id='alipaysubmit' name='alipaysubmit' action='" . $this->config->get('gateway') . "?charset=UTF-8" . "' method='POST'>";
-        while (list ($key, $val) = $this->config->fun_adm_each($params)) {
+        foreach ($params as $key => $val) {
             if (false === $this->config->checkEmpty($val)) {
                 $val = str_replace("'", "&apos;", $val);
                 //$val = str_replace("\"","&quot;",$val);

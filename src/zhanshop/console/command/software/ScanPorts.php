@@ -86,13 +86,13 @@ class ScanPorts extends Command
         $status = self::checkTcp($ip, $port);
         $description = $this->portDescription[$port] ?? '未知端口用途';
         $length = 8 - mb_strlen((string)$port);
-        $port = str_repeat(' ', $length).$port;
+        $portStr = str_repeat(' ', $length).$port;
         if($status == 1){
-            $this->output->output($port.' 检测端口为开启状态  '.$description, 'success');
+            $this->output->output($portStr.' 检测端口为开启状态  '.$description, 'success');
         }else if($status == 2){
-            $this->output->output($port.' 检测端口为关闭状态  '.$description, 'error');
+            $this->output->output($portStr.' 检测端口为关闭状态  '.$description, 'error');
         }else{
-            $this->output->output($port.' 检测端口为超时状态  '.$description, 'info');
+            $this->output->output($portStr.' 检测端口为超时状态  '.$description, 'info');
         }
     }
 

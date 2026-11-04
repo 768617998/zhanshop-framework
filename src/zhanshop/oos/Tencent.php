@@ -102,8 +102,8 @@ class Tencent
             $headerStr .= $k .'=' . $val . '&';
         }
         $headerStr = rtrim($headerStr, '&');
-        $data = $method ."\n". $host ."\n" . $dataStr."\n".$headerStr."\n";
-        return sha1($data);
+        $signStr = $method ."\n". $host ."\n" . $dataStr."\n".$headerStr."\n";
+        return sha1($signStr);
     }
     /**
      * 腾讯云OSS上传token

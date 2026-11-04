@@ -10,8 +10,10 @@ declare (strict_types = 1);
 
 namespace zhanshop;
 
+use zhanshop\client\PoolClient;
 use zhanshop\client\RpcClient;
 use zhanshop\client\WorkerClient;
+use zhanshop\console\command\Pool;
 use zhanshop\console\command\Server;
 
 /**
@@ -39,7 +41,7 @@ class Container
      * @return void
      */
     public function bind(string $key, string $class){
-        $this->bind[$key] = $class;
+        self::$bind[$key] = $class;
     }
 
     /**
@@ -91,6 +93,23 @@ class Container
     {
         $taskCall = new TaskCall();
         return $taskCall->make($className, ...$value);
+    }
+
+    /**
+     * 通过进程池执行代码
+     * @template Type
+     * @param class-string<Type> $className
+     * @return Type
+     */
+    public static function runProcess(string $className, ...$value)
+    {
+        $client = new PoolClient();
+        return $client->make($className, ...$value);
+        if(file_exists(Pool::$socketFile)){
+            $client = new PoolClient();
+            return $client->make($className, ...$value);
+        }
+        return self::task($className, ...$value);
     }
 
     /**

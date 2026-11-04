@@ -26,7 +26,7 @@ class Dispatch
     // 已注册的路由
     protected $routes = [];
 
-    public function regRoute(Rule &$rule){
+    public function regRoute(Rule $rule){
         $rule->middleware = array_reverse(array_merge($rule->middleware, App::config()->get('middleware.'.$this->app, [])));
         $middlewares = [];
         foreach($rule->middleware as $middleware){
@@ -81,7 +81,7 @@ class Dispatch
      * @param \Swoole\Http\Response $servResponse
      * @return mixed
      */
-    public function run(string &$name, Request &$request, Response &$servResponse){
+    public function run(string &$name, Request $request, Response $servResponse){
         $roure = $request->getRoure();
         $action = $roure['handler'][1];
         $controller = $roure['handler'][0];

@@ -42,14 +42,16 @@ abstract class BaseTable
 
     /**
      * 获取一行数据
+     * Swoole\Table::get 未命中返回的是 **false 而不是 null**,故 `$data ?? $default` 里的 $default 是死参
+     * (false ?? $default 仍是 false),必须显式判 false 才能让 $default 生效
      * @param string $key
      * @param mixed|null $default
-     * @return mixed
+     * @return mixed 整行数组或 $default
      */
     public static function get(string $key, mixed $default = null): mixed
     {
         $data = static::table()->get($key);
-        return $data ?? $default;
+        return $data === false ? $default : $data;
     }
 
     /**

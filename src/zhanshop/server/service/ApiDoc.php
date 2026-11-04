@@ -74,16 +74,15 @@ class ApiDoc
      */
     public function authorization(Request $request, ?Response $response = null)
     {
+        $configured = (string)$this->password;
         // 1. 标准 Basic Auth
         $authCode = $request->header('authorization', "");
         if($authCode){
             $arr = explode(" ", $authCode);
             if(isset($arr[1])){
-                $accPass = base64_decode($arr[1]);
-                $accPass = explode(":", $accPass);
-                $account = $accPass[0];
+                $accPass = explode(":", (string)base64_decode($arr[1]), 2);
                 $password = $accPass[1] ?? '';
-                if($password == $this->password){
+                if(hash_equals($configured, (string)$password)){
                     if($response){
                         $response->rawResponse()->setCookie("APP-AUTH", $arr[1], 0, '/');
                     }
@@ -92,14 +91,18 @@ class ApiDoc
             }
         }
         // 2. 兼容 apis.html 等页面传递的 auth 请求头
-        $altAuth = $request->header('auth', "");
-        if($altAuth && $altAuth == $this->password){
+        $altAuth = (string)$request->header('auth', "");
+        if($altAuth !== '' && hash_equals($configured, $altAuth)){
             return true;
         }
-        // 3. 已有有效 cookie 会话 (之前 Basic Auth 成功过)
-        $cookieName = $request->rawRequest()->cookie["APP-NAME"] ?? "";
-        if($cookieName && $this->password){
-            return true;
+        // 3. 已有有效 cookie 会话：校验 Basic Auth 成功时下发的 APP-AUTH（base64 的 account:password）
+        $authCookie = (string)($request->rawRequest()->cookie["APP-AUTH"] ?? '');
+        if($authCookie !== ''){
+            $accPass = explode(":", (string)base64_decode($authCookie), 2);
+            $password = $accPass[1] ?? '';
+            if(hash_equals($configured, (string)$password)){
+                return true;
+            }
         }
         return false;
     }
@@ -140,7 +143,7 @@ class ApiDoc
         ];
     }
 
-    public function success(Request &$request, Response &$response){
+    public function success(Request $request, Response $response){
         $data = $request->validateRule([
             'uri' => 'required',
             'method' => 'required',
@@ -163,7 +166,7 @@ class ApiDoc
         return [];
     }
 
-    public function failure(Request &$request, Response &$response){
+    public function failure(Request $request, Response $response){
         return [];
     }
 
@@ -180,44 +183,50 @@ class ApiDoc
                 $tree[] = $item;
                 continue;
             }
-            $current = &$tree;
-            foreach ($parts as $i => $part) {
-                $isLeaf = ($i === count($parts) - 1);
-                $found = false;
-                foreach ($current as $k => &$existing) {
-                    if (($existing['name'] ?? '') === $part) {
-                        if ($isLeaf) {
-                            $existing = array_merge($existing, $item, ['name' => $part]);
-                        } else {
-                            if (!isset($existing['children'])) $existing['children'] = [];
-                            $current = &$existing['children'];
-                        }
-                        $found = true;
-                        break;
-                    }
-                }
-                unset($existing);
-                if (!$found) {
-                    if ($isLeaf) {
-                        $current[] = array_merge($item, ['name' => $part]);
-                    } else {
-                        $node = [
-                            'name' => $part, 'type' => 'object', 'required' => '否',
-                            'default' => '', 'description' => '', 'children' => [],
-                        ];
-                        if ($i === 0) {
-                            $node['description'] = $item['description'] ?? '';
-                            $node['required'] = $item['required'] ?? '否';
-                            $node['default'] = $item['default'] ?? '';
-                            $node['type'] = $item['type'] ?? 'object';
-                        }
-                        $current[] = $node;
-                        $current = &$current[count($current) - 1]['children'];
-                    }
-                }
-            }
+            $tree = self::buildParamTreeInsert($tree, $parts, $item, true);
         }
         return $tree;
+    }
+
+    /**
+     * 递归把单个 dot-notation 参数插入树（供 buildParamTree 使用）
+     */
+    private static function buildParamTreeInsert(array $nodes, array $parts, array $item, bool $topLevel): array
+    {
+        $part = array_shift($parts);
+        $isLeaf = empty($parts);
+        $found = false;
+        foreach ($nodes as $k => $existing) {
+            if (($existing['name'] ?? '') === $part) {
+                if ($isLeaf) {
+                    $nodes[$k] = array_merge($existing, $item, ['name' => $part]);
+                } else {
+                    if (!isset($existing['children'])) $existing['children'] = [];
+                    $nodes[$k]['children'] = self::buildParamTreeInsert($existing['children'], $parts, $item, false);
+                }
+                $found = true;
+                break;
+            }
+        }
+        if (!$found) {
+            if ($isLeaf) {
+                $nodes[] = array_merge($item, ['name' => $part]);
+            } else {
+                $node = [
+                    'name' => $part, 'type' => 'object', 'required' => '否',
+                    'default' => '', 'description' => '', 'children' => [],
+                ];
+                if ($topLevel) {
+                    $node['description'] = $item['description'] ?? '';
+                    $node['required'] = $item['required'] ?? '否';
+                    $node['default'] = $item['default'] ?? '';
+                    $node['type'] = $item['type'] ?? 'object';
+                }
+                $node['children'] = self::buildParamTreeInsert([], $parts, $item, false);
+                $nodes[] = $node;
+            }
+        }
+        return $nodes;
     }
 
     /**
@@ -319,11 +328,10 @@ class ApiDoc
             $doc = $this->parseAnnotation($comment, $baseUri, $menuTitle);
             if ($doc) $docs[] = $doc;
         }
-        foreach ($docs as &$doc) {
-            if (!empty($doc['success'])) $doc['success'] = self::buildParamTree($doc['success']);
-            if (!empty($doc['param']))   $doc['param']   = $this->enrichRequestParams($doc['param'], $keyField);
+        foreach ($docs as $k => $entry) {
+            if (!empty($entry['success'])) $docs[$k]['success'] = self::buildParamTree($entry['success']);
+            if (!empty($entry['param']))   $docs[$k]['param']   = $this->enrichRequestParams($entry['param'], $keyField);
         }
-        unset($doc);
         return $docs;
     }
 
@@ -355,11 +363,11 @@ class ApiDoc
 
         // Annotations::required 返回 'true'/'false' → 统一处理
         $fixBool = function(array &$arr) use (&$fixBool) {
-            foreach ($arr as &$v) {
-                if (($v['required'] ?? '') === 'true')  $v['required'] = '是';
-                if (($v['required'] ?? '') === 'false') $v['required'] = '否';
-                if (($v['default'] ?? null) === null)   $v['default']  = '';
-                if (!empty($v['children'])) $fixBool($v['children']);
+            foreach ($arr as $k => $v) {
+                if (($v['required'] ?? '') === 'true')  $arr[$k]['required'] = '是';
+                if (($v['required'] ?? '') === 'false') $arr[$k]['required'] = '否';
+                if (($v['default'] ?? null) === null)   $arr[$k]['default']  = '';
+                if (!empty($v['children'])) $fixBool($arr[$k]['children']);
             }
         };
         $fixBool($headers);
@@ -413,11 +421,10 @@ class ApiDoc
             ['method'=>'POST','uri'=>$baseUri,'title'=>$title.' - 批量删除','description'=>'批量删除（WHERE IN，事务级联）','header'=>$h,'param'=>[['name'=>'_method','type'=>'string','required'=>'是','default'=>'deletes','description'=>'方法名'],['name'=>$keyField,'type'=>'array','required'=>'是','default'=>'','description'=>'主键值数组']],'success'=>array_merge($s,[]),'error'=>[['code'=>'403','description'=>'未配置关系表'],['code'=>'405','description'=>'主键不能为空']],'response'=>['code'=>0,'msg'=>'批量删除成功','data'=>[]],'detail'=>'<p style="color:#666;font-size:13px;line-height:2em;">⚠ 注意：<br>1. 字段名由 meta.key_field 决定<br>2. 格式：'.$keyField.'[]=val1&'.$keyField.'[]=val2</p>'],
             ['method'=>'POST','uri'=>$baseUri,'title'=>$title.' - 单条删除','description'=>'删除单条记录（事务级联）','header'=>$h,'param'=>[['name'=>'_method','type'=>'string','required'=>'是','default'=>'delete','description'=>'方法名'],['name'=>$keyField,'type'=>'string','required'=>'是','default'=>'','description'=>'主键值']],'success'=>array_merge($s,[]),'error'=>[['code'=>'403','description'=>'未配置关系表'],['code'=>'405','description'=>'主键不能为空']],'response'=>['code'=>0,'msg'=>'删除成功','data'=>[]],'detail'=>'<p style="color:#666;font-size:13px;line-height:2em;">⚠ 注意：<br>1. 字段名由 meta.key_field 决定<br>2. 与批量删除共用底层实现</p>'],
         ];
-        foreach ($docs as &$doc) {
-            if (!empty($doc['success'])) $doc['success'] = self::buildParamTree($doc['success']);
-            if (!empty($doc['param']))   $doc['param']   = $this->enrichRequestParams($doc['param'], $keyField);
+        foreach ($docs as $k => $doc) {
+            if (!empty($doc['success'])) $docs[$k]['success'] = self::buildParamTree($doc['success']);
+            if (!empty($doc['param']))   $docs[$k]['param']   = $this->enrichRequestParams($doc['param'], $keyField);
         }
-        unset($doc);
         return ['d' => $docs];
     }
 

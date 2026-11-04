@@ -15,6 +15,7 @@ use zhanshop\console\command\ApiRoute;
 use zhanshop\console\command\CallScript;
 use zhanshop\console\command\Help;
 use zhanshop\console\command\Phar;
+use zhanshop\console\command\Pool;
 use zhanshop\console\command\Server;
 use zhanshop\console\command\software\Dnscheck;
 use zhanshop\console\command\software\MysqlRecovery;
@@ -46,6 +47,7 @@ class Console{
     protected $commands = [
         'help'       => Help::class,
         'server' => Server::class,
+        'pool' => Pool::class,
         'script' => CallScript::class,
         'phar' => Phar::class,
         'api:route' => ApiRoute::class,

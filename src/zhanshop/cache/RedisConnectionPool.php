@@ -56,12 +56,16 @@ class RedisConnectionPool
             $this->recoveryRedis($redis);
         }catch (\Throwable $e){
             $this->recoveryRedis($redis);
-            if(strpos($e->getMessage(), 'away')){
+            if($this->isLostConnection($e)){
                 try{
                     $this->reconnect();
                     $redis = $this->getRedis();
-                    $call($redis);
-                    $this->recoveryRedis($redis);
+                    try {
+                        $call($redis);
+                    } finally {
+                        // 无论重试成败都回收，防止重试二次失败导致连接泄漏
+                        $this->recoveryRedis($redis);
+                    }
                     return;
                 }catch (\Throwable $err){
                     App::log()->error('Redis callback retry failed: '.$err->getMessage().' '.$err->getFile().':'.$err->getLine());
@@ -101,12 +105,16 @@ class RedisConnectionPool
         }catch (\Throwable $e){
             $this->recoveryRedis($redis);
             // 仅连接断开类错误才重试，避免业务逻辑错误触发误重连
-            if(strpos($e->getMessage(), 'away')){
+            if($this->isLostConnection($e)){
                 try{
                     $this->reconnect();
                     $redis = $this->getRedis();
-                    $data = $redis->$name(...$arguments);
-                    $this->recoveryRedis($redis);
+                    try {
+                        $data = $redis->$name(...$arguments);
+                    } finally {
+                        // 无论重试成败都回收，防止重试二次失败导致连接泄漏
+                        $this->recoveryRedis($redis);
+                    }
                     return $data;
                 }catch (\Throwable $err){
                     App::log()->error('Redis retry failed: '.$err->getMessage().' '.$err->getFile().':'.$err->getLine());
@@ -121,7 +129,11 @@ class RedisConnectionPool
      * @return void
      */
     public function reconnect(){
-        $this->pool->close();
+        try{
+            $this->pool->close();
+        }catch (\Throwable $e){
+            // 并发重连时旧池可能已被其他协程关闭，忽略 close 失败
+        }
 
         $hostname = Helper::gethostbyname($this->config['host']);
         if (filter_var($hostname, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
@@ -136,6 +148,23 @@ class RedisConnectionPool
             ->withTimeout((float)$this->config['timeout'] ?? 1)
             ,$this->maxConnections
         );
+    }
+
+    /**
+     * 判断是否为连接断开类错误（仅匹配确定性断连特征，避免误判业务错误触发无谓重连）
+     * went away / Connection lost / Connection refused / read error on connection(恢复瞬间)
+     * @param \Throwable $e
+     * @return bool
+     */
+    protected function isLostConnection(\Throwable $e): bool
+    {
+        $msg = $e->getMessage();
+        return strpos($msg, 'went away') !== false
+            || strpos($msg, 'Connection lost') !== false
+            || strpos($msg, 'Connection refused') !== false
+            || strpos($msg, 'read error on connection') !== false
+            || strpos($msg, 'reset by peer') !== false
+            || strpos($msg, 'Broken pipe') !== false;
     }
 
     public function __destruct()

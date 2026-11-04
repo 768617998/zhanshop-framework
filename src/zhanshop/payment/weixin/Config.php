@@ -94,6 +94,7 @@ R9hk0fdHgX6raoKdQbqZJcYc
      */
     public function sign(string $message, $privateKey): string
     {
+        $signature = '';
         if (!openssl_sign($message, $signature, $privateKey, OPENSSL_ALGO_SHA256)) {
 
             throw new \Exception('Signing the input $message failed, please checking your $privateKey whether or nor correct.', 400);

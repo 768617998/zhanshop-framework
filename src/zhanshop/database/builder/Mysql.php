@@ -14,7 +14,7 @@ use zhanshop\database\Query;
 
 class Mysql
 {
-    public function &insert(Query &$query){
+    public function insert(Query $query){
         $data = $query->getOptions("data", true);
         if($data){
             $field = implode(', ', array_keys($data[0]));
@@ -45,7 +45,7 @@ class Mysql
         throw new \PDOException("未设定需要insert的数据", 2000);
     }
 
-    public function delete(Query &$query){
+    public function delete(Query $query){
         $where = $query->getOptions("where", true);
         $whereStr = $this->parseWhere($query, $where);
         $limitStr = $this->parseLimit($query, $query->getOptions("limit", true));
@@ -56,7 +56,7 @@ class Mysql
         throw new \PDOException("未设定需要delete的条件", 2001);
     }
 
-    public function update(Query &$query){
+    public function update(Query $query){
         $where = $query->getOptions("where", true);
         $whereStr = $this->parseWhere($query, $where);
         if($whereStr){
@@ -78,7 +78,7 @@ class Mysql
         throw new \PDOException("未设定需要update的条件", 2002);
     }
 
-    public function count(Query &$query){
+    public function count(Query $query){
         $joinStr = $this->parseJoin($query, $query->getOptions("join", true));
         $whereStr = $this->parseWhere($query, $query->getOptions("where", true));
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
@@ -93,7 +93,7 @@ class Mysql
     }
 
     // 聚合查询只有where条件有效
-    public function avg(Query &$query){
+    public function avg(Query $query){
         $joinStr = $this->parseJoin($query, $query->getOptions("join", true));
         $whereStr = $this->parseWhere($query, $query->getOptions("where", true));
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
@@ -107,7 +107,7 @@ class Mysql
         return $sql;
     }
 
-    public function min(Query &$query){
+    public function min(Query $query){
         $joinStr = $this->parseJoin($query, $query->getOptions("join", true));
         $whereStr = $this->parseWhere($query, $query->getOptions("where", true));
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
@@ -121,7 +121,7 @@ class Mysql
         return $sql;
     }
 
-    public function max(Query &$query){
+    public function max(Query $query){
         $joinStr = $this->parseJoin($query, $query->getOptions("join", true));
         $whereStr = $this->parseWhere($query, $query->getOptions("where", true));
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
@@ -135,7 +135,7 @@ class Mysql
         return $sql;
     }
 
-    public function sum(Query &$query){
+    public function sum(Query $query){
         $joinStr = $this->parseJoin($query, $query->getOptions("join", true));
         $whereStr = $this->parseWhere($query, $query->getOptions("where", true));
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
@@ -149,7 +149,7 @@ class Mysql
         return $sql;
     }
 
-    public function find(Query &$query){
+    public function find(Query $query){
         $joinStr = $this->parseJoin($query, $query->getOptions("join", true));
         $whereStr = $this->parseWhere($query, $query->getOptions("where", true));
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
@@ -164,7 +164,7 @@ class Mysql
         return $sql;
     }
 
-    public function select(Query &$query){
+    public function select(Query $query){
         $joinStr = $this->parseJoin($query, $query->getOptions("join", true));
         $whereStr = $this->parseWhere($query, $query->getOptions("where", true));
         $havingStr = $this->parseHaving($query, $query->getOptions("having", true));
@@ -180,21 +180,21 @@ class Mysql
         return $sql;
     }
 
-    public function parseAlias(Query &$query, ?string $alias){
+    public function parseAlias(Query $query, ?string $alias){
         if($alias){
             $alias = ' AS '.$alias;
         }
         return $alias;
     }
 
-    public function parseForceIndex(Query &$query, ?string $field){
+    public function parseForceIndex(Query $query, ?string $field){
         if($field){
             $field = ' FORCE INDEX ('.$field.') ';
         }
         return $field;
     }
 
-    protected function parseWhere(Query &$query, ?array $where){
+    protected function parseWhere(Query $query, ?array $where){
         $whereStr = '';
         $ands = $where['AND'] ?? [];
         $firstKey = array_key_first($ands);
@@ -250,7 +250,7 @@ class Mysql
         return $whereStr;
     }
 
-    public function parseHaving(Query &$query, ?array $having){
+    public function parseHaving(Query $query, ?array $having){
         $havingStr = '';
         foreach ($having ?? [] as $k => $v){
             if($havingStr){
@@ -266,7 +266,7 @@ class Mysql
         return $havingStr;
     }
 
-    public function parseOrder(Query &$query, ?array $order){
+    public function parseOrder(Query $query, ?array $order){
         $orderStr = '';
         if($order){
             $orderStr = ' ORDER BY '.implode(',', $order);
@@ -274,12 +274,12 @@ class Mysql
         return $orderStr;
     }
 
-    public function parseGroup(Query &$query, ?string $group){
+    public function parseGroup(Query $query, ?string $group){
         if($group) $group = " GROUP BY ".$group;
         return $group;
     }
 
-    public function parseLimit(Query &$query, ?array $limit){
+    public function parseLimit(Query $query, ?array $limit){
         $limitStr = '';
         if($limit){
             $limitStr = " LIMIT ".$limit[0];
@@ -292,7 +292,7 @@ class Mysql
         return $limitStr;
     }
 
-    public function parseJoin(Query &$query, ?array $join){
+    public function parseJoin(Query $query, ?array $join){
         $joinStr = '';
         if($join){
             foreach($join as $v){
@@ -305,7 +305,7 @@ class Mysql
         return $joinStr;
     }
 
-    public function buildSql(Query &$query){
+    public function buildSql(Query $query){
         $sql = $this->select($query);
         $bind = $query->getBind();
         return $this->fetchSql($sql, $bind);

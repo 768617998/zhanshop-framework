@@ -134,7 +134,7 @@ class Input
                     fclose($fp);
                     break;
                 }catch (\Throwable $err){
-                    return $this->input($name, '', $default, true);
+                    return $this->input($name, '', $default);
                 }
             }
         }

@@ -32,11 +32,30 @@ class Validate
                 $function = explode(':', $vv);
                 $method = $function[0];
                 unset($function[0]);
-                $args = array_merge([$k, $data[$k] ?? ''], array_filter($function, 'strlen'));
-                //echo $method.'('.implode(',', $args).')'.PHP_EOL;
-                //print_r($args);
+                $extra = array_values(array_filter($function, 'strlen'));
+                $val = $data[$k] ?? '';
                 $this->data[$k] = $data[$k] ?? null;
-                call_user_func([$this, $method], ...$args);
+                // AOT 下 call_user_func([$this, $method]) 无法暴露 protected 方法作用域(user-code frame), 改显式分发
+                switch($method){
+                    case 'required': $this->required($k, $val); break;
+                    case 'max': $this->max($k, $val, intval($extra[0] ?? 0)); break;
+                    case 'min': $this->min($k, $val, intval($extra[0] ?? 0)); break;
+                    case 'between': $this->between($k, $val, intval($extra[0] ?? 0), intval($extra[1] ?? 0)); break;
+                    case 'email': $this->email($k, $val); break;
+                    case 'url': $this->url($k, $val); break;
+                    case 'int': $this->int($k, $val); break;
+                    case 'number': $this->number($k, $val); break;
+                    case 'float': $this->float($k, $val); break;
+                    case 'string': $this->string($k, $val); break;
+                    case 'array': $this->array($k, $val); break;
+                    case 'mobile': $this->mobile($k, $val); break;
+                    case 'card': $this->card($k, $val); break;
+                    case 'date': $this->date($k, $val); break;
+                    case 'time': $this->time($k, $val); break;
+                    case 'func': $this->func($k, $val, $extra[0] ?? ''); break;
+                    case 'length': $this->length($k, $val, $extra[0] ?? 0, $extra[1] ?? 0); break;
+                    case 'regex': $this->regex($k, $val, $extra[0] ?? '', false); break;
+                }
             }
         }
     }
@@ -281,6 +300,12 @@ class Validate
      * @return void
      */
     protected function length(string $key, mixed $val, mixed $minLength, mixed $maxLength){
+        // 数组/对象不能强转字符串:PHP 会发 Array to string conversion 警告,经框架
+        // errorHandler 直接逃逸成 500。null 与标量保持原语义,行为不变
+        if(is_array($val) || is_object($val)){
+            $this->errors[] = ($this->message[$key] ?? $key).'不是一个有效的字符串';
+            return;
+        }
         $val = (string) $val;
         $minLength = (int) $minLength;
         $maxLength = (int) $maxLength;

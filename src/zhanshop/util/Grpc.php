@@ -72,9 +72,9 @@ class Grpc
 
     public static function urlClass(string $uri){
         if($uri == false) App::error()->setError('请求参数错误', Error::FORBIDDEN);
-        $uri = explode('.', $uri);
+        $parts = explode('.', $uri);
         $class = '';
-        foreach($uri as $v){
+        foreach($parts as $v){
             $class .= ucfirst($v).'\\';
         }
         $class = rtrim($class, '\\');

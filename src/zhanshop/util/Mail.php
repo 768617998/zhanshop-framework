@@ -110,13 +110,26 @@ class Mail
     }
 
     /**
+     * 校验邮件头参数，禁止 CR/LF 防止 SMTP 命令/邮件头注入
+     * @param string $value
+     * @return string
+     */
+    private function checkHeaderValue(string $value): string
+    {
+        if(strpos($value, "\r") !== false || strpos($value, "\n") !== false){
+            App::error()->setError('邮件参数包含非法换行符', 400);
+        }
+        return $value;
+    }
+
+    /**
      * 设置发件人
      * @param string $fromMail
      * @return $this
      */
     public function setFromMail(string $fromMail)
     {
-        $this->_from = $fromMail;
+        $this->_from = $this->checkHeaderValue($fromMail);
         return $this;
     }
 
@@ -127,6 +140,7 @@ class Mail
      */
     public function setToMail(string $toMail)
     {
+        $toMail = $this->checkHeaderValue($toMail);
         if(isset($this->_to)) {
             if(is_string($this->_to)) {
                 $this->_to = array($this->_to);
@@ -154,6 +168,7 @@ class Mail
      */
     public function setCcMail(string $ccMail)
     {
+        $ccMail = $this->checkHeaderValue($ccMail);
         if(isset($this->_cc)) {
             if(is_string($this->_cc)) {
                 $this->_cc = array($this->_cc);
@@ -176,6 +191,7 @@ class Mail
      */
     public function setBccMail(string $bccMail)
     {
+        $bccMail = $this->checkHeaderValue($bccMail);
         if(isset($this->_bcc)) {
             if(is_string($this->_bcc)) {
                 $this->_bcc = array($this->_bcc);
@@ -200,7 +216,7 @@ class Mail
      */
     public function setContent(string $subject, string $body, ?string $attachment = null)
     {
-        $this->_subject = $subject;
+        $this->_subject = $this->checkHeaderValue($subject);
         $this->_body = base64_encode($body);
         if(!empty($attachment)) {
             $this->_attachment = $attachment;

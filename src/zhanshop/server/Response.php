@@ -37,6 +37,14 @@ class Response
     protected $targetfd = 0;
 
     /**
+     * 进程级常量缓存：serial_code / pid 在 worker 生命周期内不变，
+     * 仅首次生成 trace_id 时读取，避免每请求走容器/系统调用。
+     * @var int|null
+     */
+    private static ?int $serialCode = null;
+    private static ?int $pid = null;
+
+    /**
      * 构造器
      * @param int $protocol
      * @param \Swoole\Http\Response|\Swoole\WebSocket\Server $rawResponse
@@ -155,6 +163,22 @@ class Response
     }
 
     /**
+     * 生成 trace_id（时间戳.随机数.集群序号.进程id）
+     * serial_code / pid 为进程级常量仅首次读取；microtime + rand 每请求变化。
+     * @return string
+     */
+    private function traceId(): string
+    {
+        if (self::$serialCode === null) {
+            self::$serialCode = (int)App::config()->get('app.serial_code', 0);
+        }
+        if (self::$pid === null) {
+            self::$pid = getmypid();
+        }
+        return sprintf('%.6f%d.%d.%d', microtime(true), rand(10000, 99999), self::$serialCode, self::$pid);
+    }
+
+    /**
      * 发送http响应
      * @return bool
      */
@@ -163,7 +187,7 @@ class Response
         $this->rawResponse->status($this->getHttpCode());
         $this->rawResponse->header('Server', 'zhanshop');
         if(is_array($this->data)){
-            $this->data['trace_id'] = microtime(true).rand(10000, 99999).'.'. App::config()->get('app.serial_code', 0).'.'.getmypid();
+            $this->data['trace_id'] = $this->traceId();
             $this->rawResponse->header('Content-Type', 'application/json; charset=utf-8');
             $this->data = json_encode($this->data);
             return $this->rawResponse->end($this->data);
@@ -181,7 +205,7 @@ class Response
     private function sendWebsocket()
     {
         if(is_array($this->data) || is_object($this->data)){
-            $this->data['trace_id'] = microtime(true).rand(10000, 99999).'.'. App::config()->get('app.serial_code', 0).'.'.getmypid();
+            $this->data['trace_id'] = $this->traceId();
             $this->data = json_encode($this->data);
         }
         return Server::$server->push($this->fromfd, $this->data."\r\n");
@@ -212,7 +236,7 @@ class Response
     private function sendTcp()
     {
         if(is_array($this->data) || is_object($this->data)){
-            $this->data['trace_id'] = microtime(true).rand(10000, 99999).'.'. App::config()->get('app.serial_code', 0).'.'.getmypid();
+            $this->data['trace_id'] = $this->traceId();
             $this->data = json_encode($this->data);
         }
         return Server::$server->send($this->fromfd, $this->data."\r\n");

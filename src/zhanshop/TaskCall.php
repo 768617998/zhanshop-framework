@@ -21,7 +21,7 @@ class TaskCall
      * @param class-string<Type> $className
      * @return Type
      */
-    public function make(string $className)
+    public function make(string $className, ...$value)
     {
         $this->class = $className;
         return $this;

@@ -40,7 +40,7 @@ class Log
         $this->logLevel = App::config()->get("log.level", 4);
         $this->lockTime = floatval(App::env()->get("LOG_LOCK_TIME", "1"));
         if(PHP_OS == 'Darwin') $this->lockTime = 5;
-        \Swoole\Timer::tick(3000, function(){
+        \Swoole\Timer::tick(3000, function($timerId){
             // 跨天句柄检查：即使 buffer 为空也要释放前一天句柄
             // 否则前一天日志被删除后磁盘空间无法回收
             if (!$this->isWriting) {
@@ -181,29 +181,29 @@ class Log
         if (empty($this->logBuffer)) return;
 
         $this->isWriting = true;
-
-        $logBuffer = $this->logBuffer;
-        $this->logBuffer = [];
-
         try {
-            $result = App::make($this->logType)->write($logBuffer);
-            if ($result === false) {
-                // 失败重试一次（磁盘瞬时满可能恢复）
-                $result = App::make($this->logType)->write($logBuffer);
-            }
-        } catch (\Throwable $e) {
-            // 异常也重试一次，再失败则丢弃
-            try {
-                App::make($this->logType)->write($logBuffer);
-            } catch (\Throwable $e2) {}
+            // 原子换出：一次性快照，写盘期间新涌入的日志归入下一批
+            // （由 3s 定时器或 buffSize 阈值触发），无需递归/循环排空。
+            // 性能优先：换出即视为已处理，落盘失败/异常直接丢弃、不重试不阻塞。
+            $batch = $this->logBuffer;
+            $this->logBuffer = [];
+
+            $this->flush($batch);
+        } finally {
+            // 无论成败都复位，防止异常逃逸导致 isWriting 永久卡死、后续日志静默丢失
+            $this->isWriting = false;
         }
-        // 重试后仍失败 → 丢弃本批日志，不反复重试拖垮程序
+    }
 
-        $this->isWriting = false;
-
-        // 写盘期间有新日志涌入，立即再刷一轮
-        if (!empty($this->logBuffer)) {
-            $this->write();
+    /**
+     * 批量落盘。极端高并发下允许日志丢失：失败/异常直接丢弃，换取极致吞吐。
+     */
+    private function flush(array $batch): void
+    {
+        try {
+            App::make($this->logType)->write($batch);
+        } catch (\Throwable $e) {
+            // 丢弃本批，不重试
         }
     }
 }

@@ -28,7 +28,7 @@ class File
 
         $today = date('Ymd');
         $filePath = App::runtimePath() . '/log/' . $today . '.log';
-        $data = implode(PHP_EOL, $data) . PHP_EOL;
+        $line = implode(PHP_EOL, $data) . PHP_EOL;
 
         // 换日：关闭旧句柄，打开新文件
         // fclose/fopen 是 I/O 会触发协程切换，fopen 后需 CAS 防重复 fd 泄漏
@@ -86,7 +86,7 @@ class File
         }
 
         // O_APPEND + fwrite：多进程原子追加，不加 flock
-        $written = fwrite($fp, $data);
+        $written = fwrite($fp, $line);
         if ($written !== false) {
             fflush($fp);
         }

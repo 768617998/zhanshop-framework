@@ -11,6 +11,7 @@ declare (strict_types=1);
 namespace zhanshop;
 
 use Swoole\Timer as STimer;
+use Swoole\Coroutine;
 
 class Timer
 {
@@ -38,7 +39,10 @@ class Timer
 
         $this->microtime = microtime(true);
         // 添加一个效验时间的定时器
-        STimer::tick($this->correctionInterval * 1000, [$this, 'correction']);
+        // 用闭包包装：AOT 下 [$this, 'correction'] 直接作为 Swoole 回调会因 protected 可见性被拒
+        STimer::tick($this->correctionInterval * 1000, function ($timerId) {
+            $this->correction();
+        });
     }
 
     /**
@@ -108,11 +112,13 @@ class Timer
         }
         $ms = ($ruleTime - $currentTime) * 1000;
         $crontab->timerId = STimer::after($ms, function () use ($crontab){
-            try {
-                $crontab->execute();
-            }catch (\Throwable $e){
-                Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
-            }
+            Coroutine::create(function () use ($crontab){
+                try {
+                    $crontab->execute();
+                }catch (\Throwable $e){
+                    Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+                }
+            });
             $this->everymonth($crontab);
         });
     }
@@ -139,12 +145,22 @@ class Timer
         $ms = ($ruleTime - $currentTime) * 1000;
         // 设置第一次执行的时间
         STimer::after($ms, function () use ($crontab){
-            $crontab->timerId = STimer::tick(86400 * 7 * 1000, [$crontab, 'execute']); // 首次执行后添加下次执行的时间也就1周后的现在
-            try {
-                $crontab->execute();
-            }catch (\Throwable $e){
-                Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
-            }
+            $crontab->timerId = STimer::tick(86400 * 7 * 1000, function ($timerId) use ($crontab){
+                Coroutine::create(function () use ($crontab){
+                    try {
+                        $crontab->execute();
+                    }catch (\Throwable $e){
+                        Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+                    }
+                });
+            });
+            Coroutine::create(function () use ($crontab){
+                try {
+                    $crontab->execute();
+                }catch (\Throwable $e){
+                    Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+                }
+            });
         });
     }
 
@@ -167,12 +183,22 @@ class Timer
         $ms = ($ruleTime - $currentTime) * 1000;
         // 设置第一次执行的时间
         $crontab->timerId = STimer::after($ms, function () use ($crontab){
-            $crontab->timerId = STimer::tick(86400 * 1000, [$crontab, 'execute']); // 首次执行后添加下次执行的时间也就1天后的现在
-            try {
-                $crontab->execute();
-            }catch (\Throwable $e){
-                Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
-            }
+            $crontab->timerId = STimer::tick(86400 * 1000, function ($timerId) use ($crontab){
+                Coroutine::create(function () use ($crontab){
+                    try {
+                        $crontab->execute();
+                    }catch (\Throwable $e){
+                        Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+                    }
+                });
+            });
+            Coroutine::create(function () use ($crontab){
+                try {
+                    $crontab->execute();
+                }catch (\Throwable $e){
+                    Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+                }
+            });
         });
     }
 
@@ -196,12 +222,22 @@ class Timer
         $ms = ($ruleTime - $currentTime) * 1000;
         // 设置第一次执行的时间
         $crontab->timerId = STimer::after($ms, function () use ($crontab){
-            $crontab->timerId = STimer::tick(rand(43200, 129600) * 1000, [$crontab, 'execute']); // 首次执行后添加下次执行的时间也就1天后的现在
-            try {
-                $crontab->execute();
-            }catch (\Throwable $e){
-                Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
-            }
+            $crontab->timerId = STimer::tick(rand(43200, 129600) * 1000, function ($timerId) use ($crontab){
+                Coroutine::create(function () use ($crontab){
+                    try {
+                        $crontab->execute();
+                    }catch (\Throwable $e){
+                        Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+                    }
+                });
+            });
+            Coroutine::create(function () use ($crontab){
+                try {
+                    $crontab->execute();
+                }catch (\Throwable $e){
+                    Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+                }
+            });
         });
     }
 
@@ -211,12 +247,14 @@ class Timer
      * @return void
      */
     protected function interval(mixed $crontab){
-        $timerId = STimer::tick($crontab->getRule()['interval'], function () use ($crontab){
-            try {
-                $crontab->execute();
-            }catch (\Throwable $e){
-                Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
-            }
+        $timerId = STimer::tick($crontab->getRule()['interval'], function ($timerId) use ($crontab){
+            Coroutine::create(function () use ($crontab){
+                try {
+                    $crontab->execute();
+                }catch (\Throwable $e){
+                    Log::errorLog(SWOOLE_LOG_ERROR, '定时任务执行错误 '.$e->getMessage().PHP_EOL.'#@ '.$e->getFile().':'.$e->getLine().PHP_EOL.$e->getTraceAsString().PHP_EOL);
+                }
+            });
         });
         $crontab->timerId = $timerId; // 关联定时id
     }

@@ -170,12 +170,12 @@ class Httpclient
      */
     public function uploadData(string $name, string $data, string $mimeType = '', string $filename = '')
     {
-        $data = [
+        $uploadData = [
             'data' => $data,
             'mimeType' => $mimeType,
             'filename' => $filename
         ];
-        $this->config['uploaddata'][$name] = $data;
+        $this->config['uploaddata'][$name] = $uploadData;
     }
 
     /**
@@ -406,7 +406,10 @@ class Httpclient
                 return $this->download($headers['location'], $saveFile, $offset - 1);
             }
         }
-        if($statusCode < 200 || $statusCode >= 399) App::error()->setError($url."下载失败", $statusCode);
+        // 判据是 2xx 才叫成功(原为 `< 200 || >= 399`): 3xx 若上面没能跟过去(没 Location 或
+        // 跳转次数用尽), 落到这里必须报错 —— 否则会把**重定向页本身**当成用户要的文件交出去,
+        // 还返回 true。TrojanClient::download() 那份是同一个根因, 已一并订正。
+        if($statusCode < 200 || $statusCode >= 300) App::error()->setError($url."下载失败", $statusCode);
         return true;
     }
 

@@ -15,10 +15,12 @@ namespace zhanshop;
 class Config
 {
     /**
-     * 配置参数
+     * 配置参数（static：AOT 下配置靠 aot_static_init 注入进进程级数据，
+     * worker 进程 onWorkerStart 里 cleanAll() 清实例后重新 new Config 时，
+     * static 数据仍在，避免 glob 不到 config 目录导致配置丢失）
      * @var array
      */
-    protected $config = [];
+    protected static $config = [];
 
     /**
      * 配置文件目录
@@ -73,7 +75,7 @@ class Config
             return $this->parse($filename, $name);
         }
 
-        return $this->config;
+        return self::$config;
     }
 
     /**
@@ -116,7 +118,7 @@ class Config
      */
     public function has(string $name): bool
     {
-        if (false === strpos($name, '.') && !isset($this->config[strtolower($name)])) {
+        if (false === strpos($name, '.') && !isset(self::$config[strtolower($name)])) {
             return false;
         }
 
@@ -133,7 +135,7 @@ class Config
     {
         $name = strtolower($name);
 
-        return $this->config[$name] ?? [];
+        return self::$config[$name] ?? [];
     }
 
     /**
@@ -147,19 +149,19 @@ class Config
     {
         // 无参数时获取所有
         if (empty($name)) {
-            return $this->config;
+            return self::$config;
         }
 
         if (false === strpos($name, '.')) {
             return $this->pull($name);
         }
 
-        $name    = explode('.', $name);
-        $name[0] = strtolower($name[0]);
-        $config  = $this->config;
+        $parts    = explode('.', $name);
+        $parts[0] = strtolower($parts[0]);
+        $config   = self::$config;
 
         // 按.拆分成多维数组进行判断
-        foreach ($name as $val) {
+        foreach ($parts as $val) {
             if (isset($config[$val])) {
                 $config = $config[$val];
             } else {
@@ -180,15 +182,15 @@ class Config
     public function set(array $config, string $name = ""): array
     {
         if (!empty($name)) {
-            if (isset($this->config[$name])) {
-                $result = array_merge($this->config[$name], $config);
+            if (isset(self::$config[$name])) {
+                $result = array_merge(self::$config[$name], $config);
             } else {
                 $result = $config;
             }
 
-            $this->config[$name] = $result;
+            self::$config[$name] = $result;
         } else {
-            $result = $this->config = array_merge($this->config, array_change_key_case($config));
+            $result = self::$config = array_merge(self::$config, array_change_key_case($config));
         }
 
         return $result;

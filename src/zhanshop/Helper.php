@@ -95,17 +95,17 @@ declare (strict_types=1);\n\n";
      * @return string
      */
     public static function orderId(){
-        $date = new \DateTime();
-        $date = $date->format('ymdHisu') . substr(strval(getmypid()), -1);
-        $randomLen = 19 - strlen($date);
-        if ($randomLen <= 0) return intval($date);
+        $dateObj = new \DateTime();
+        $dateStr = $dateObj->format('ymdHisu') . substr(strval(getmypid()), -1);
+        $randomLen = 19 - strlen($dateStr);
+        if ($randomLen <= 0) return intval($dateStr);
         $max = intval(str_repeat("9", $randomLen));
         try {
-            $date .= sprintf("%0{$randomLen}d", random_int(0, $max));
+            $dateStr .= sprintf("%0{$randomLen}d", random_int(0, $max));
         } catch (\Exception $e) {
-            $date .= sprintf("%0{$randomLen}d", mt_rand(0, $max));
+            $dateStr .= sprintf("%0{$randomLen}d", mt_rand(0, $max));
         }
-        return intval($date);
+        return intval($dateStr);
     }
 
     /**
@@ -215,13 +215,13 @@ declare (strict_types=1);\n\n";
         $year = date("Y", $date);
         $month = date("m", $date);
         $yearWeek = date("W", $date);
-        $day = date('d', $date);
+        $day = (int)date('d', $date);
         $monthWeek = ceil($day / 7);
-        if($month == 1 && $yearWeek > 50){
-            $year--;
-            $month = 12;
-            $yearLastMonthWeek1 = date("W", strtotime($year.'-'.$month));
-            $monthWeek = $yearWeek - $yearLastMonthWeek1;
+        if((int)$month == 1 && (int)$yearWeek > 50){
+            $year = (string)((int)$year - 1);
+            $month = "12";
+            $yearLastMonthWeek1 = (int)date("W", strtotime($year.'-'.$month));
+            $monthWeek = (int)$yearWeek - $yearLastMonthWeek1;
         }
 
         return [

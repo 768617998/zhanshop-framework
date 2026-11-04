@@ -19,7 +19,7 @@ use zhanshop\server\Event;
 class JsonRpcEvent extends Event
 {
     protected $passIps = [];
-    public function __construct(mixed &$server, array $servNames)
+    public function __construct(mixed $server, array $servNames)
     {
         parent::__construct($server, $servNames);
         $passIps = App::env()->get('RPC_PASS_IP');

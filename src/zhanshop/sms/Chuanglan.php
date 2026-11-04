@@ -43,12 +43,12 @@ class Chuanglan
      */
     protected function getNonceNum(int $length)
     {
-        $date = new \DateTime();
-        $date = substr($date->format('ymdHisu'), 0, 14).substr(strval(getmypid()), -1, 1);
-        $length -= strlen($date);
+        $dateObj = new \DateTime();
+        $dateStr = substr($dateObj->format('ymdHisu'), 0, 14).substr(strval(getmypid()), -1, 1);
+        $length -= strlen($dateStr);
         $max = intval(str_repeat("9", $length));
-        $date .= sprintf("%0{$length}d", rand(0, $max));
-        return $date;
+        $dateStr .= sprintf("%0{$length}d", rand(0, $max));
+        return $dateStr;
     }
 
     /**

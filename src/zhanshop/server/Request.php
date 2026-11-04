@@ -101,9 +101,14 @@ class Request
         if($this->method){
             return $this->method;
         }else if(isset($this->rawRequest->post['_method'])){
-            $this->method = $this->rawRequest->post['_method'];
+            $method = $this->rawRequest->post['_method'];
             unset($this->rawRequest->post['_method']);
-            return $this->method;
+            // _method 由客户端控制,仅接受字符串。数组等异常值直接赋值会撞上 :string
+            // 返回类型抛 TypeError(Error 系,catch(\Exception) 接不住),故忽略并回落真实方法
+            if(is_string($method)){
+                $this->method = $method;
+                return $this->method;
+            }
         }
         return $this->rawRequest->getMethod();
     }

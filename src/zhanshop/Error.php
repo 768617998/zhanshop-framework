@@ -30,6 +30,18 @@ class Error extends \Error
     }
 
     /**
+     * 设置json错误
+     * @param array $msg
+     * @param int $code
+     * @return mixed
+     * @throws \Exception
+     */
+    public function setJsonError(array $msg, int $code = 500)
+    {
+        throw new \ErrorException(json_encode($msg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_IGNORE), $code);
+    }
+
+    /**
      * 断言
      * @param mixed $condition
      * @param string $message

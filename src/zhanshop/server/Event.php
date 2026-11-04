@@ -71,7 +71,7 @@ class Event
      * @param mixed $server
      * @param array $servNames
      */
-    public function __construct(mixed &$server, array $servNames)
+    public function __construct(mixed $server, array $servNames)
     {
         $this->server = $server;
         $this->servNames = $servNames;
@@ -160,6 +160,8 @@ class Event
      * @return void
      */
     public function onWorkerExit($server, $workerId) :void{
+        App::log()->write(); // 落盘尚未刷新的日志
+        Timer::clearAll(); // 退出前清理常驻定时器，避免等满 max_wait_time
     }
 
     /**
@@ -222,6 +224,31 @@ class Event
             return;
         }
         App::make(WebHandle::class)->httpDispatch($this->servName, $request, $response);
+    }
+
+    /**
+     * http请求(路由别名变体):先按 app/api/{servName}/route.php 把字面路径精确重写到点式路径,再走 onRequest。
+     * 仅精确匹配(O(1) 哈希),无正则/通配;route.php 平时不建,有字面路径兼容需求时手动创建。
+     * 结构:[method大写 => [字面路径 => 点式路径]],'*' 为任意方法兜底。
+     */
+    public function onRequestAlias($request, $response) :void{
+        static $routes = null; // worker 常驻:仅首次读 route.php,免每请求 is_file
+        if ($routes === null) {
+            $file = App::appPath().'/api/'.$this->servName.'/route.php';
+            $routes = is_file($file) ? include $file : [];
+            if (!is_array($routes)) $routes = [];
+        }
+        if ($routes) {
+            $method = strtoupper((string)($request->server['request_method'] ?? 'GET'));
+            $uri = (string)($request->server['request_uri'] ?? '/');
+            $path = str_contains($uri, '?') ? substr($uri, 0, strpos($uri, '?')) : $uri;
+            $target = $routes[$method][$path] ?? $routes['*'][$path] ?? null;
+            if ($target !== null) {
+                $request->server['request_uri']  = (string)$target;
+                $request->server['path_info']    = (string)$target;
+            }
+        }
+        $this->onRequest($request, $response);
     }
 
     /**

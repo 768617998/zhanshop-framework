@@ -49,8 +49,8 @@ class MaxFile
             }
 
             // 逆序生成当前块解析出的行
-            foreach (array_reverse($lines) as $line) {
-                yield $line;
+            foreach (array_reverse($lines) as $lineItem) {
+                yield $lineItem;
             }
         }
 

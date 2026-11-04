@@ -84,7 +84,7 @@ class XmlQuery
         return $allMatches == false ? null : $allMatches;
     }
 
-    public function toArray(){
+    public function toArray(): array{
         return $this->outHTML;
     }
 }

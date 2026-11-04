@@ -55,6 +55,29 @@ class PDOConnectionPool
     }
 
     /**
+     * 判断是否为连接断开类错误（仅匹配确定性断连特征，避免误判业务错误触发无谓重连）
+     * 2006 gone away / 2013 lost connection / 2002 拒绝连接(宕机) / 4031 空闲超时断开(wait_timeout)
+     * @param \Throwable $e
+     * @return bool
+     */
+    protected function isLostConnection(\Throwable $e): bool
+    {
+        $code = $e->getCode();
+        if ($code == 2006 || $code == 2013 || $code == 2002 || $code == 4031) {
+            return true;
+        }
+        $msg = $e->getMessage();
+        return strpos($msg, 'gone away') !== false
+            || strpos($msg, 'Lost connection') !== false
+            || strpos($msg, 'Connection refused') !== false
+            || strpos($msg, 'inactivity') !== false
+            || strpos($msg, 'Packets out of order') !== false
+            || strpos($msg, 'Error while sending') !== false
+            || strpos($msg, 'reset by peer') !== false
+            || strpos($msg, 'Broken pipe') !== false;
+    }
+
+    /**
      * 执行查询
      * @param $pdo
      * @param $sql
@@ -131,11 +154,15 @@ class PDOConnectionPool
                 $this->recoveryPDO($pdo);
             }catch (\Throwable $e){
                 $this->recoveryPDO($pdo);
-                if($e->getCode() == 2006 || strpos($e->getMessage(), '2006') || strpos($e->getMessage(), 'ackets ') || strpos($e->getMessage(), 'failed ') || strpos($e->getMessage(), 'close')){
+                if($this->isLostConnection($e)){
                     $this->reconnect(); // 重连
                     $pdo = $this->getPDO();
-                    $result = $this->_query($pdo, $sql, $bind);
-                    $this->recoveryPDO($pdo);
+                    try {
+                        $result = $this->_query($pdo, $sql, $bind);
+                    } finally {
+                        // 无论重试成败都回收，防止重试二次失败导致连接泄漏耗尽池
+                        $this->recoveryPDO($pdo);
+                    }
                 }else{
                     throw new \Exception($e->getMessage().',sql:'.$sql.','.json_encode($bind, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE), (int)$e->getCode());
                 }
@@ -179,7 +206,7 @@ class PDOConnectionPool
             $this->recoveryPDO($pdo);
             return $result;
         }catch (\Throwable $e){
-            if($e->getCode() == 2006 || strpos($e->getMessage(), '2006') || strpos($e->getMessage(), 'ackets ') || strpos($e->getMessage(), 'failed ') || strpos($e->getMessage(), 'close')){
+            if($this->isLostConnection($e)){
                 $this->recoveryPDO($pdo);
                 $this->reconnect(); // 重连
                 if($isRetry) return $this->transaction($call, false); // 重试
@@ -212,11 +239,15 @@ class PDOConnectionPool
                 $this->recoveryPDO($pdo);
             }catch (\Throwable $e){
                 $this->recoveryPDO($pdo);
-                if($e->getCode() == 2006 || strpos($e->getMessage(), '2006') || strpos($e->getMessage(), 'ackets ') || strpos($e->getMessage(), 'failed ') || strpos($e->getMessage(), 'close')){
+                if($this->isLostConnection($e)){
                     $this->reconnect(); // 重连
                     $pdo = $this->getPDO();
-                    $result = $this->_execute($pdo, $sql, $bind, $lastId);
-                    $this->recoveryPDO($pdo);
+                    try {
+                        $result = $this->_execute($pdo, $sql, $bind, $lastId);
+                    } finally {
+                        // 无论重试成败都回收，防止重试二次失败导致连接泄漏耗尽池
+                        $this->recoveryPDO($pdo);
+                    }
                 }else{
                     throw new \Exception($e->getMessage().',sql:'.$sql.','.json_encode($bind, JSON_UNESCAPED_SLASHES + JSON_UNESCAPED_UNICODE));
                 }

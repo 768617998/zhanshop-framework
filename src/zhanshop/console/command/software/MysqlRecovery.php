@@ -19,6 +19,23 @@ use zhanshop\util\MaxFile;
 class MysqlRecovery extends Command
 {
     protected $recoveryPath = 'docker/mysql/recovery/';
+
+    /**
+     * PDO 选项键: "连上之后先执行一条语句"(这里用来统一字符集)。
+     * 不能直接写 \PDO::MYSQL_ATTR_INIT_COMMAND —— PHP 8.5 把 PDO 的**驱动专属**常量迁到了
+     * Pdo\Mysql 并弃用旧名, 旧名在 8.5 上会发 E_DEPRECATED; 而本框架的 Error::errorHandler
+     * 是拿 E_ALL 注册并把任何错误(含 deprecated)抛成异常的, 于是"数据恢复"这个命令会在建连那行
+     * 直接失败, 且看不出跟 PHP 版本有关。Pdo\Mysql 是 8.4 才有的类, 8.3 及更早只有旧名可用,
+     * 所以按存在性二选一(三元是惰性的, 未选中的那支不会被求值, 因此 8.5 上不会碰到旧名)。
+     * @return int
+     */
+    protected static function initCommandOption(): int
+    {
+        return defined('Pdo\Mysql::ATTR_INIT_COMMAND')
+            ? \Pdo\Mysql::ATTR_INIT_COMMAND
+            : \PDO::MYSQL_ATTR_INIT_COMMAND;
+    }
+
     public function configure()
     {
         $this->useCache()->setTitle('mysql')->setDescription('数据恢复');
@@ -38,7 +55,7 @@ class MysqlRecovery extends Command
 
         $pdo = new \PDO('mysql:host='.$ip.';port='.$port, $user, $pwd, [
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
-            \PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES 'utf8mb4'"
+            self::initCommandOption() => "SET NAMES 'utf8mb4'"
         ]);
 
         $expire = $pdo->query("SHOW VARIABLES LIKE 'binlog_expire_logs_seconds';")->fetch();

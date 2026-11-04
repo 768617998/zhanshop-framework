@@ -104,8 +104,6 @@ class App extends Container
         self::$appPath      = self::$rootPath .DIRECTORY_SEPARATOR. 'app';
         self::$runtimePath  = self::$rootPath .DIRECTORY_SEPARATOR. 'runtime';
         self::$routePath    = self::$rootPath .DIRECTORY_SEPARATOR. 'route';
-
-        return $this;
     }
 
     /**

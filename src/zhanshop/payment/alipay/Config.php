@@ -124,6 +124,7 @@ class Config
             wordwrap($priKey, 64, "\n", true) .
             "\n-----END RSA PRIVATE KEY-----";
         if($res == false) throw new \Exception('您使用的私钥格式错误，请检查RSA私钥配置', 400);
+        $sign = '';
         openssl_sign($stringToBeSigned, $sign, $res, OPENSSL_ALGO_SHA256);
         $sign = base64_encode($sign);
         //unset($systemParams['biz_content']);
@@ -161,7 +162,7 @@ class Config
             $res[1] = $res['value'] = $array[$key];
             $res[0] = $res['key'] = $key;
         } else {
-            $res = false;
+            $res = [];
         }
         return $res;
     }

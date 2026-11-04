@@ -13,7 +13,7 @@ abstract class QueueService
     {
         $this->channel = new Channel($this->capacity);
 
-        \Swoole\Timer::tick($this->timeout, function(){
+        \Swoole\Timer::tick($this->timeout, function($timerId){
             if(!$this->isEmpty()) $this->consume();
         });
     }

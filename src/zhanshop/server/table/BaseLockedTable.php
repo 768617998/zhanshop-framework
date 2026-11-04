@@ -52,7 +52,8 @@ abstract class BaseLockedTable extends BaseTable
         self::$allLockTimeouts[$class] = $timeout;
 
         if ($shardNum === null || $shardNum <= 0) {
-            self::$allLocks[$class] = new \Swoole\Coroutine\Lock();
+            // shared=true 才跨进程互斥(默认 false 是进程内锁,多 worker 各自一把互不排斥);须在 fork 前建锁、只建一次
+            self::$allLocks[$class] = new \Swoole\Coroutine\Lock(true);
             self::$allLockShards[$class] = 0;
             return;
         }
@@ -60,7 +61,7 @@ abstract class BaseLockedTable extends BaseTable
         self::$allLockShards[$class] = $shardNum;
         $locks = [];
         for ($i = 0; $i < $shardNum; $i++) {
-            $locks[$i] = new \Swoole\Coroutine\Lock();
+            $locks[$i] = new \Swoole\Coroutine\Lock(true);
         }
         self::$allLocks[$class] = $locks;
     }
@@ -89,6 +90,9 @@ abstract class BaseLockedTable extends BaseTable
         $timeout = self::$allLockTimeouts[static::class] ?? 3.0;
         $startTime = microtime(true);
         while (true) {
+            // 保留 lock(LOCK_NB):后续升级 Swoole 后即为非阻塞。
+            // 注意前提:lock(int $operation, float $timeout) 是 \Swoole\Lock 的 API,且需新版本(6.0.2 反射为无参);
+            // 当前 \Swoole\Coroutine\Lock::lock() 无参,LOCK_NB 会被忽略=阻塞,超时分支暂不生效。升级时须把本类改用 \Swoole\Lock 一并到位。
             if ($lock->lock(LOCK_NB)) {
                 return;
             }
