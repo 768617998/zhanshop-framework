@@ -17,9 +17,9 @@ php8.5 以上版本，需要redis扩展的支持， pdo mysql 扩展的支持，
 
 
 ## 性能表现 （供参考和对比）
-本框架http服务器，在我的（本机12核，32G ubuntu22 设备上）使用ab压力测试工具 吞吐量可达38万多/s
+本框架http服务器，在我的（本机12核，32G ubuntu22 设备上）使用ab压力测试工具 吞吐量可达38万多/s , 多核压测可破百万QPS
 
-压测表现碾压如go语言的Gin框架、python语言的Tornado框架、java语言的Spring Boot等一众框架
+压测表现碾压如go语言的Gin框架、python语言的fastapi框架、java语言的Spring Boot等一众框架
 
 ## 目录结构
 ~~~
